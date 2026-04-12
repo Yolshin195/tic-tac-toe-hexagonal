@@ -42,7 +42,10 @@
 
     <div id="screen-game" class="hidden w-full max-w-md bg-white p-6 rounded-lg shadow-lg">
         <div class="flex justify-between items-center mb-4">
-            <h2 id="display-game-name" class="text-xl font-bold text-gray-800">Игра</h2>
+            <h2 class="text-xl font-bold text-gray-800">
+                <span id="display-game-name">Игра</span> 
+                <span id="display-game-id" class="text-sm font-normal text-gray-500 ml-2"></span>
+            </h2>
             <button onclick="checkActiveGame()" class="text-blue-500 text-sm hover:underline">Обновить</button>
         </div>
         
@@ -154,6 +157,7 @@
             currentGame = game;
             showScreen('screen-game');
             document.getElementById('display-game-name').innerText = game.name;
+            document.getElementById('display-game-id').innerText = `ID: ${game.id}`;
             
             const isUserOne = game.user_one && game.user_one.id === currentUser.id;
             const mySymbol = isUserOne ? game.user_one_simbol : game.user_two_simbol;
@@ -284,7 +288,7 @@
 
         setInterval(() => {
             if (currentGame && currentGame.status === 'Active') refreshGameData();
-        }, 4000);
+        }, 500);
 
         initApp();
     </script>
