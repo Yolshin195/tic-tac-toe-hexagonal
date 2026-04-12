@@ -14,11 +14,11 @@
         .ws-offline { background-color: #ef4444; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center font-sans">
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center font-sans p-4">
 
     <div id="toast-container"></div>
 
-    <div class="fixed top-4 right-4">
+    <div class="fixed top-4 right-4 z-50">
         <select id="lang-select" onchange="changeLang(this.value)" class="p-2 border rounded shadow-sm bg-white text-sm outline-none">
             <option value="ru">Русский</option>
             <option value="en">English</option>
@@ -51,25 +51,38 @@
         </div>
     </div>
 
-    <div id="screen-game" class="hidden w-full max-w-md bg-white p-6 rounded-lg shadow-lg">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold text-gray-800">
-                <span id="display-game-name">Игра</span> 
-                <span id="display-game-id" class="text-sm font-normal text-gray-500 ml-2"></span>
-                <span id="ws-status" class="ws-indicator ws-offline"></span>
-            </h2>
-            <button onclick="checkActiveGame()" data-t="btn_refresh" class="text-blue-500 text-sm hover:underline">Обновить</button>
-        </div>
-        
-        <div id="game-status-bar" class="mb-4 p-3 rounded text-center font-bold text-lg"></div>
+    <div id="screen-game" class="hidden w-full max-w-5xl bg-white rounded-lg shadow-lg overflow-hidden flex flex-col md:flex-row h-[600px]">
+        <div class="flex-1 p-6 border-r flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">
+                    <span id="display-game-name">Игра</span> 
+                    <span id="display-game-id" class="text-sm font-normal text-gray-500 ml-2"></span>
+                    <span id="ws-status" class="ws-indicator ws-offline"></span>
+                </h2>
+                <button onclick="checkActiveGame()" data-t="btn_refresh" class="text-blue-500 text-sm hover:underline">Обновить</button>
+            </div>
+            
+            <div id="game-status-bar" class="mb-4 p-3 rounded text-center font-bold text-lg"></div>
+            <div class="grid grid-cols-3 gap-2 mb-6 mx-auto w-full max-w-[320px]" id="board"></div>
 
-        <div class="grid grid-cols-3 gap-2 mb-6" id="board"></div>
-
-        <div class="flex justify-between items-center bg-gray-50 p-3 rounded text-sm text-gray-600">
-            <div><span data-t="label_you">Вы</span>: <span id="my-username" class="font-bold text-gray-800">-</span></div>
-            <div><span data-t="label_sym">Символ</span>: <span id="my-symbol" class="font-black text-blue-600 text-base">-</span></div>
+            <div class="mt-auto flex justify-between items-center bg-gray-50 p-3 rounded text-sm text-gray-600">
+                <div><span data-t="label_you">Вы</span>: <span id="my-username" class="font-bold text-gray-800">-</span></div>
+                <div><span data-t="label_sym">Символ</span>: <span id="my-symbol" class="font-black text-blue-600 text-base">-</span></div>
+            </div>
+            <button onclick="showLobby()" data-t="btn_back" class="mt-4 w-full text-gray-400 hover:text-gray-600 transition text-sm">Вернуться в лобби</button>
         </div>
-        <button onclick="showLobby()" data-t="btn_back" class="mt-6 w-full text-gray-400 hover:text-gray-600 transition text-sm">Вернуться в лобби</button>
+
+        <div class="w-full md:w-80 bg-gray-50 flex flex-col h-full border-t md:border-t-0">
+            <div class="p-4 border-b bg-white font-bold text-gray-700 flex items-center">
+                <span class="mr-2">💬</span> Chat & Logs
+            </div>
+            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-2 text-sm">
+                </div>
+            <div class="p-3 bg-white border-t flex gap-2">
+                <input type="text" id="chat-input" placeholder="Сообщение..." class="flex-1 p-2 border rounded text-sm outline-none focus:ring-2 focus:ring-blue-400" onkeypress="if(event.key==='Enter') sendMessage()">
+                <button onclick="sendMessage()" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">➤</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -97,16 +110,19 @@
                 btn_refresh: "รีเฟรช", label_you: "คุณ", label_sym: "สัญลักษณ์", btn_back: "กลับไปล็อบบี้",
                 status_waiting: "รอคู่ต่อสู้...", status_your_turn: "ตาของคุณ!", status_turn_of: "ตาของ {n}",
                 res_draw: "เสมอ!", res_win_you: "คุณชนะ!", res_win_other: "{n} ชนะ!",
-                err_fields: "กรุณากรอกข้อมูลให้ครบ", err_gname: "กรุณาระบุชื่อเกม", err_gid: "กรุณาระบุไอดีเกม", err_conn: "ไม่มีการเชื่อมต่อกับเซิร์ฟเวอร์"
+                err_fields: "กรุณากรอกข้อมูลให้ครบ", err_gname: "กรุณาระบุชื่อเกม", err_gid: "กรุณาระบุไอดีเกม", err_conn: "ไม่มีการเชื่อมต่อกับเซิร์ฟвер"
             }
         };
 
         let currentLang = 'en';
+        let token = localStorage.getItem('token');
+        let currentUser = null;
+        let currentGame = null;
+        let ws = null;
 
         function initLang() {
             const browserLang = navigator.language.split('-')[0];
-            const supported = Object.keys(i18n);
-            currentLang = supported.includes(browserLang) ? browserLang : 'en';
+            currentLang = Object.keys(i18n).includes(browserLang) ? browserLang : 'en';
             document.getElementById('lang-select').value = currentLang;
             translatePage();
         }
@@ -124,21 +140,43 @@
         }
 
         function translatePage() {
-            document.querySelectorAll('[data-t]').forEach(el => {
-                el.innerText = t(el.getAttribute('data-t'));
-            });
-            document.querySelectorAll('[data-tp]').forEach(el => {
-                el.placeholder = t(el.getAttribute('data-tp'));
-            });
+            document.querySelectorAll('[data-t]').forEach(el => el.innerText = t(el.getAttribute('data-t')));
+            document.querySelectorAll('[data-tp]').forEach(el => el.placeholder = t(el.getAttribute('data-tp')));
         }
 
-        // --- STATE ---
-        let token = localStorage.getItem('token');
-        let currentUser = null;
-        let currentGame = null;
-        let ws = null;
+        // --- CHAT LOGIC ---
+        function addChatMessage(text, type = 'system') {
+            const container = document.getElementById('chat-messages');
+            const msgEl = document.createElement('div');
+            
+            if (type === 'error') {
+                msgEl.className = 'p-2 rounded bg-red-100 text-red-700 border-l-4 border-red-500';
+                msgEl.innerText = `⚠️ ${text}`;
+            } else if (type === 'chat') {
+                msgEl.className = 'p-2 rounded bg-blue-100 text-blue-800 self-end';
+                msgEl.innerText = text;
+            } else {
+                msgEl.className = 'p-2 italic text-gray-500 text-xs text-center';
+                msgEl.innerText = text;
+            }
+            
+            container.appendChild(msgEl);
+            container.scrollTop = container.scrollHeight;
+        }
 
-        // --- UI HELPERS ---
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+            try {
+                await apiFetch('/api/game/message', 'POST', { message });
+                input.value = '';
+            } catch (e) {
+                addChatMessage(e.message, 'error');
+            }
+        }
+
+        // --- API & CORE ---
         function showToast(message, type = 'error') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -149,9 +187,9 @@
                 toast.style.opacity = '0';
                 setTimeout(() => toast.remove(), 500);
             }, 3000);
+            if (type === 'error') addChatMessage(t(message) || message, 'error');
         }
 
-        // --- API ---
         async function apiFetch(url, method = 'GET', body = null, isForm = false) {
             const headers = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -170,17 +208,16 @@
                 const data = await response.json();
                 if (!response.ok) {
                     const msg = data.detail ? (typeof data.detail === 'string' ? data.detail : data.detail[0].msg) : 'Error';
-                    showToast(msg);
                     throw new Error(msg);
                 }
                 return data;
             } catch (e) {
                 if (e.message.includes('fetch')) showToast('err_conn');
+                else showToast(e.message);
                 throw e;
             }
         }
 
-        // --- CORE ---
         function initBoard() {
             const board = document.getElementById('board');
             board.innerHTML = '';
@@ -193,24 +230,27 @@
             }
         }
 
-        async function handleAuth(type) {
-            const username = document.getElementById('auth-username').value;
-            const password = document.getElementById('auth-password').value;
-            if (!username || !password) return showToast('err_fields');
-            try {
-                let res = (type === 'register') 
-                    ? await apiFetch('/api/register', 'POST', { username, password })
-                    : await apiFetch('/api/login/form', 'POST', { username, password }, true);
-                token = res.access_token;
-                localStorage.setItem('token', token);
-                initApp();
-            } catch (e) {}
+        function setupWebSocket(gameId) {
+            if (ws && ws.url.includes(`/ws/${gameId}`) && ws.readyState === WebSocket.OPEN) return;
+            if (ws) ws.close();
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/${gameId}`);
+
+            ws.onopen = () => document.getElementById('ws-status').className = 'ws-indicator ws-online';
+            ws.onmessage = (event) => {
+                if (event.data === "refresh") {
+                    refreshGameData();
+                } else {
+                    addChatMessage(event.data, 'chat');
+                    refreshGameData();
+                }
+            };
+            ws.onclose = () => document.getElementById('ws-status').className = 'ws-indicator ws-offline';
         }
 
         function renderGame(game) {
             if (!game) return;
             currentGame = game;
-            
             showScreen('screen-game');
             
             document.getElementById('display-game-name').innerText = game.name;
@@ -218,10 +258,9 @@
             
             const isUserOne = game.user_one && game.user_one.id === currentUser.id;
             const mySymbol = isUserOne ? game.user_one_simbol : (game.user_two_simbol || '-');
-            document.getElementById('my-username').innerText = currentUser.username; // Исправлено: берем из currentUser
+            document.getElementById('my-username').innerText = currentUser.username;
             document.getElementById('my-symbol').innerText = mySymbol;
 
-            // Очистка и отрисовка доски
             for (let i = 0; i < 9; i++) {
                 const cell = document.getElementById(`cell-${i}`);
                 if (cell) {
@@ -246,7 +285,6 @@
                 } else {
                     let lastT = game.turns.length ? game.turns.reduce((max, t) => t.id > max.id ? t : max) : null;
                     let nextPlayerId = !lastT ? game.user_one.id : (lastT.user.id === game.user_one.id ? game.user_two.id : game.user_one.id);
-
                     if (nextPlayerId === currentUser.id) {
                         statusBar.innerText = t('status_your_turn');
                         statusBar.className = "mb-4 p-3 rounded text-center bg-green-100 text-green-700 animate-pulse";
@@ -257,14 +295,26 @@
                     }
                 }
             } else {
-                let resTxt = "";
-                if (game.status === 'Draw') resTxt = t('res_draw');
-                else if (game.status === 'Win_user_one') resTxt = isUserOne ? t('res_win_you') : t('res_win_other', {n: game.user_one.username});
-                else if (game.status === 'Win_user_two') resTxt = !isUserOne ? t('res_win_you') : t('res_win_other', {n: game.user_two.username});
+                let resTxt = (game.status === 'Draw') ? t('res_draw') : (game.status === 'Win_user_one' ? (isUserOne ? t('res_win_you') : t('res_win_other', {n: game.user_one.username})) : (!isUserOne ? t('res_win_you') : t('res_win_other', {n: game.user_two.username})));
                 statusBar.innerText = resTxt;
                 statusBar.className = "mb-4 p-3 rounded text-center bg-indigo-600 text-white";
             }
             setupWebSocket(game.id);
+        }
+
+        // Остальные функции (handleAuth, makeMove, refreshGameData, showScreen, initApp, checkActiveGame, showLobby, createGame, joinGame, logout) остаются без изменений, просто добавь их ниже.
+        async function handleAuth(type) {
+            const username = document.getElementById('auth-username').value;
+            const password = document.getElementById('auth-password').value;
+            if (!username || !password) return showToast('err_fields');
+            try {
+                let res = (type === 'register') 
+                    ? await apiFetch('/api/register', 'POST', { username, password })
+                    : await apiFetch('/api/login/form', 'POST', { username, password }, true);
+                token = res.access_token;
+                localStorage.setItem('token', token);
+                initApp();
+            } catch (e) {}
         }
 
         async function makeMove(cellIndex) {
@@ -281,41 +331,6 @@
                 const game = await apiFetch(`/api/game/${currentGame.id}`);
                 renderGame(game);
             } catch(e) {}
-        }
-
-        function setupWebSocket(gameId) {
-            // Если сокет уже открыт для этой игры, ничего не делаем
-            if (ws && ws.url.includes(`/ws/${gameId}`) && ws.readyState === WebSocket.OPEN) return;
-            
-            if (ws) ws.close();
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws/${gameId}`);
-
-            const indicator = document.getElementById('ws-status');
-
-            ws.onopen = () => {
-                if (indicator) indicator.className = 'ws-indicator ws-online';
-                console.log("WebSocket Connected");
-            };
-
-            ws.onmessage = (event) => {
-                // Выводим уведомление, если пришел текст (например "Противник подключился")
-                console.log("Event: ", event)
-                if (event.data && event.data !== "refresh") {
-                    showToast(event.data, 'success');
-                }
-                // В любом случае обновляем состояние игры
-                refreshGameData();
-            };
-
-            ws.onclose = () => {
-                if (indicator) indicator.className = 'ws-indicator ws-offline';
-                console.log("WebSocket Disconnected");
-            };
-
-            ws.onerror = () => {
-                if (indicator) indicator.className = 'ws-indicator ws-offline';
-            };
         }
 
         function showScreen(id) {
@@ -340,7 +355,7 @@
             try {
                 const game = await apiFetch('/api/game');
                 if (game && game.id) {
-                    initBoard(); // Подготавливаем кнопки
+                    initBoard();
                     renderGame(game);
                 } else {
                     showLobby();
@@ -351,19 +366,18 @@
         function showLobby() {
             currentGame = null;
             if(ws) ws.close();
+            document.getElementById('chat-messages').innerHTML = ''; // Очистка чата при выходе
             showScreen('screen-lobby');
         }
 
         async function createGame() {
             const nameEl = document.getElementById('game-name');
-            const name = nameEl.value;
-            if (!name) return showToast('err_gname');
+            if (!nameEl.value) return showToast('err_gname');
             try {
-                const game = await apiFetch('/api/game', 'POST', { name });
+                const game = await apiFetch('/api/game', 'POST', { name: nameEl.value });
                 nameEl.value = '';
-                showScreen('screen-game'); // Переключаем экран
-                initBoard();               // Рисуем кнопки
-                renderGame(game);          // Заполняем данными
+                initBoard();
+                renderGame(game);
             } catch(e) {}
         }
 
@@ -374,7 +388,6 @@
             try {
                 const game = await apiFetch('/api/game/join', 'POST', { game_id });
                 idEl.value = '';
-                showScreen('screen-game');
                 initBoard();
                 renderGame(game);
             } catch(e) {}
@@ -385,11 +398,6 @@
             location.reload();
         }
 
-        setInterval(() => {
-            if (currentGame && currentGame.status === 'Active') refreshGameData();
-        }, 10000);
-
-        // START
         initLang();
         initApp();
     </script>

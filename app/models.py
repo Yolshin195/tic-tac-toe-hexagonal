@@ -29,6 +29,14 @@ class LoggingUserRequest(BaseModel):
     password: str
 
 
+class SendMessageRequest(BaseModel):
+    message: str
+
+
+class Event(BaseModel):
+    pass
+
+
 class JoinGameRequest(BaseModel):
     game_id: int
 

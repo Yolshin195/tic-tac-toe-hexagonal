@@ -1,2 +1,88 @@
-# tic-tac-toe-hexagonal
-A simple Tic-Tac-Toe implementation demonstrating Hexagonal Architecture  (Ports and Adapters) in Rust.  The project shows how to separate: - domain logic - application services - ports (interfaces) - adapters (implementations)  Designed as an educational example.
+# FastAPI Tic-Tac-Toe
+
+Профессиональная реализация классической игры "Крестики-нолики" с использованием асинхронного стека, WebSocket для реального времени и многоязычным интерфейсом.
+
+*Место для вашего скриншота*
+
+## 🚀 Особенности
+
+  * **Real-time геймплей**: Использование WebSockets для мгновенного обновления ходов и статуса противника.
+  * **Локализация (i18n)**: Поддержка русского, английского и тайского языков.
+  * **Безопасность**: JWT-авторизация (Bearer token) и защищенные API-роуты.
+  * **Адаптивный дизайн**: Современный интерфейс на Tailwind CSS с поддержкой мобильных устройств.
+  * **Управление сессиями**: Автоматическое переподключение к активной игре при обновлении страницы.
+
+-----
+
+## 🛠 Технологический стек
+
+  * **Backend**: FastAPI (Python)
+  * **Database**: SQLAlchemy / PostgreSQL (или SQLite в зависимости от конфигурации)
+  * **Frontend**: JavaScript (Vanilla), Tailwind CSS, WebSockets
+  * **DevOps**: Migrations via Alembic
+
+-----
+
+## 📦 Установка и запуск
+
+### 1\. Подготовка окружения
+
+Клонируйте репозиторий и создайте виртуальное окружение:
+
+```bash
+git clone https://github.com/your-username/fastapi-tic-tac-toe.git
+cd fastapi-tic-tac-toe
+python -m venv venv
+source venv/bin/activate  # Для Linux/macOS
+# или
+venv\Scripts\activate  # Для Windows
+```
+
+### 2\. Установка зависимостей
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3\. База данных и миграции
+
+Здесь вы можете описать процесс настройки `.env` и запуска Alembic:
+
+```bash
+# Пример:
+alembic upgrade head
+```
+
+### 4\. Запуск сервера
+
+```bash
+uvicorn main:app --reload
+```
+
+После запуска проект будет доступен по адресу: `http://127.0.0.1:8000`
+
+-----
+
+## 🔌 API Эндпоинты
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `POST` | `/api/register` | Регистрация нового пользователя |
+| `POST` | `/api/login/form` | Вход и получение токена |
+| `GET` | `/api/me` | Данные текущего пользователя |
+| `POST` | `/api/game` | Создание новой игровой комнаты |
+| `POST` | `/api/game/join` | Подключение к существующей игре по ID |
+| `POST` | `/api/game/turn` | Совершение хода |
+| `WS` | `/ws/{game_id}` | WebSocket соединение для обновлений |
+
+-----
+
+## 🛠 Архитектура данных
+
+Проект построен по принципу "Data-First":
+
+1.  **Data Model**: Определение схем SQLAlchemy для игроков, игр и истории ходов.
+2.  **Business Logic**: Асинхронная обработка правил игры и валидация ходов на стороне сервера.
+3.  **UI/UX**: Минималистичный интерфейс с высокой плотностью данных и индикацией состояния соединения.
+
+-----

@@ -12,6 +12,7 @@ from app.errors import AppError
 from app.models import (
     LoggingUserRequest,
     RegisterUserRequest,
+    SendMessageRequest,
     CreateGameRequest,
     JoinGameRequest,
     TokenResponse,
@@ -107,10 +108,11 @@ async def turn(
 
 @app.post("/api/game/message")
 async def send_message(
+        data: SendMessageRequest,
         service: GameService = Depends(get_game_service)
     ) -> None:
     game = await service.get_active_game()
-    await ws_manager.broadcast_update(game.id, "Отпавка тестового сообщения")
+    await ws_manager.broadcast_update(game.id, f"{service.user.username}: {data.message}")
 
 
 @app.websocket("/ws/{game_id}")
