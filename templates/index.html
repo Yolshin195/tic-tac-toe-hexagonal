@@ -88,28 +88,52 @@
     </div>
 
     <script>
-        const API_URL = ''; // Укажите URL сервера, если он отличается
+        const API_URL = ''; // Укажите URL сервера
         let accessToken = localStorage.getItem('token');
         let currentGame = null;
+        let pollingInterval = null;
 
-        // Инициализация при загрузке: если токен есть, пробуем получить данные о пользователе
+        // Инициализация при загрузке
         if (accessToken) {
             checkAuth();
         }
 
-        async function checkAuth() {
+        /**
+         * Универсальная обертка для API запросов
+         */
+        async function apiCall(endpoint, options = {}) {
+            const url = `${API_URL}${endpoint}`;
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers,
+            };
+
+            if (accessToken) {
+                headers['Authorization'] = `Bearer ${accessToken}`;
+            }
+
             try {
-                const response = await fetch(`${API_URL}/api/me`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (response.ok) {
-                    showSection('lobby-section');
-                    pollActiveGame(); // Начинаем опрашивать состояние игры
-                } else {
+                const response = await fetch(url, { ...options, headers });
+
+                // Если токен невалиден или протух
+                if (response.status === 401 || response.status === 403) {
                     logout();
+                    return null;
                 }
-            } catch (e) {
-                console.error("Ошибка авторизации", e);
+
+                return response;
+            } catch (error) {
+                console.error(`Сетевая ошибка (${endpoint}):`, error);
+                return null;
+            }
+        }
+
+        async function checkAuth() {
+            const response = await apiCall('/api/me');
+            if (response && response.ok) {
+                showSection('lobby-section');
+                pollActiveGame();
             }
         }
 
@@ -119,7 +143,6 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            // Используем OAuth2 Password Flow (x-www-form-urlencoded)
             const formData = new URLSearchParams();
             formData.append('username', username);
             formData.append('password', password);
@@ -145,85 +168,53 @@
             }
         });
 
-        // --- 2. ЛОББИ (СОЗДАНИЕ И ПОДКЛЮЧЕНИЕ) ---
+        // --- 2. ЛОББИ ---
         async function createGame() {
             const name = document.getElementById('new-game-name').value;
-            try {
-                const response = await fetch(`${API_URL}/api/game`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify({ name: name })
-                });
+            const response = await apiCall('/api/game', {
+                method: 'POST',
+                body: JSON.stringify({ name: name })
+            });
+
+            if (response && response.ok) {
                 const game = await response.json();
-                if (response.ok) {
-                    renderGame(game);
-                }
-            } catch (err) {
-                alert("Не удалось создать игру");
+                renderGame(game);
             }
         }
 
         async function joinGame() {
             const gameId = parseInt(document.getElementById('game-code').value);
-            try {
-                const response = await fetch(`${API_URL}/api/game/join`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify({ game_id: gameId })
-                });
+            const response = await apiCall('/api/game/join', {
+                method: 'POST',
+                body: JSON.stringify({ game_id: gameId })
+            });
+
+            if (response && response.ok) {
                 const game = await response.json();
-                if (response.ok) {
-                    renderGame(game);
-                } else {
-                    alert(game.detail || "Ошибка подключения");
-                }
-            } catch (err) {
-                alert("Ошибка соединения");
+                renderGame(game);
+            } else if (response) {
+                const err = await response.json();
+                alert(err.detail || "Ошибка подключения");
             }
         }
 
         // --- 3. ИГРОВОЙ ПРОЦЕСС ---
         async function makeMove(cellIndex) {
-            try {
-                const response = await fetch(`${API_URL}/api/game/turn`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify({ number: cellIndex })
-                });
-                
-                if (response.ok) {
-                    // После хода обновляем состояние игры
-                    await fetchCurrentGame();
-                } else {
-                    const err = await response.json();
-                    console.error(err.detail);
-                }
-            } catch (err) {
-                console.error("Ошибка при совершении хода");
+            const response = await apiCall('/api/game/turn', {
+                method: 'POST',
+                body: JSON.stringify({ number: cellIndex })
+            });
+            
+            if (response && response.ok) {
+                await fetchCurrentGame();
             }
         }
 
-        // Опрос сервера для получения обновлений (Long Polling или простой интервал)
         async function fetchCurrentGame() {
-            try {
-                const response = await fetch(`${API_URL}/api/game`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                if (response.ok) {
-                    const game = await response.json();
-                    renderGame(game);
-                }
-            } catch (e) {
-                console.log("Активной игры нет");
+            const response = await apiCall('/api/game');
+            if (response && response.ok) {
+                const game = await response.json();
+                renderGame(game);
             }
         }
 
@@ -232,16 +223,13 @@
             showSection('game-section');
             document.getElementById('display-game-name').innerText = `${game.name} (ID: ${game.id})`;
             
-            // Очищаем поле
             const cells = document.querySelectorAll('.grid-cell');
             cells.forEach(c => c.innerText = '');
 
-            // Заполняем ходы
             game.turns.forEach(turn => {
-                cells[turn.number].innerText = turn.simbol;
+                if (cells[turn.number]) cells[turn.number].innerText = turn.simbol;
             });
 
-            // Статус игры
             const statusEl = document.getElementById('status');
             if (!game.user_two) {
                 statusEl.innerText = "Ожидание второго игрока...";
@@ -251,12 +239,23 @@
         }
 
         function pollActiveGame() {
-            setInterval(fetchCurrentGame, 2000); // Проверка каждые 2 секунды
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(fetchCurrentGame, 2000);
         }
 
         function logout() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
             localStorage.removeItem('token');
             accessToken = null;
+            currentGame = null;
+            
+            // Очистка интерфейса
+            const cells = document.querySelectorAll('.grid-cell');
+            cells.forEach(c => c.innerText = '');
+            
             showSection('auth-section');
         }
 
@@ -265,7 +264,6 @@
             document.getElementById(id).classList.remove('hidden');
         }
 
-        // Привязка кликов к ячейкам
         document.querySelectorAll('.grid-cell').forEach(cell => {
             cell.addEventListener('click', (e) => {
                 const index = parseInt(e.target.dataset.index);
