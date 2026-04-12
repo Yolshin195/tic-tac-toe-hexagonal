@@ -1,0 +1,15 @@
+[project]
+name = "tic-tac-toe-api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "alembic>=1.18.4",
+    "argon2-cffi>=25.1.0",
+    "fastapi[standard]>=0.135.3",
+    "pyjwt>=2.12.1",
+    "sqlalchemy[asyncio]>=2.0.49",
+    "websockets>=16.0",
+]
