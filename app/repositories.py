@@ -120,4 +120,5 @@ class TurnRepository:
         self.session.add(turn)
         await self.session.commit()
         await self.session.refresh(turn)
+        await self.session.flush()
         return turn

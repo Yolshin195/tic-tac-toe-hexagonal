@@ -9,6 +9,9 @@
         .grid-cell { height: 100px; font-size: 2rem; transition: all 0.2s; }
         .grid-cell:disabled { cursor: not-allowed; opacity: 0.8; }
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 100; }
+        .ws-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: 5px; }
+        .ws-online { background-color: #22c55e; box-shadow: 0 0 5px #22c55e; }
+        .ws-offline { background-color: #ef4444; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center font-sans">
@@ -53,6 +56,7 @@
             <h2 class="text-xl font-bold text-gray-800">
                 <span id="display-game-name">Игра</span> 
                 <span id="display-game-id" class="text-sm font-normal text-gray-500 ml-2"></span>
+                <span id="ws-status" class="ws-indicator ws-offline"></span>
             </h2>
             <button onclick="checkActiveGame()" data-t="btn_refresh" class="text-blue-500 text-sm hover:underline">Обновить</button>
         </div>
@@ -207,7 +211,6 @@
             if (!game) return;
             currentGame = game;
             
-            // Гарантируем переключение экрана
             showScreen('screen-game');
             
             document.getElementById('display-game-name').innerText = game.name;
@@ -215,8 +218,10 @@
             
             const isUserOne = game.user_one && game.user_one.id === currentUser.id;
             const mySymbol = isUserOne ? game.user_one_simbol : (game.user_two_simbol || '-');
+            document.getElementById('my-username').innerText = currentUser.username; // Исправлено: берем из currentUser
             document.getElementById('my-symbol').innerText = mySymbol;
 
+            // Очистка и отрисовка доски
             for (let i = 0; i < 9; i++) {
                 const cell = document.getElementById(`cell-${i}`);
                 if (cell) {
@@ -279,11 +284,38 @@
         }
 
         function setupWebSocket(gameId) {
-            if (ws && ws.url.includes(`/ws/${gameId}`)) return;
+            // Если сокет уже открыт для этой игры, ничего не делаем
+            if (ws && ws.url.includes(`/ws/${gameId}`) && ws.readyState === WebSocket.OPEN) return;
+            
             if (ws) ws.close();
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${protocol}//${window.location.host}/ws/${gameId}`);
-            ws.onmessage = () => refreshGameData();
+
+            const indicator = document.getElementById('ws-status');
+
+            ws.onopen = () => {
+                if (indicator) indicator.className = 'ws-indicator ws-online';
+                console.log("WebSocket Connected");
+            };
+
+            ws.onmessage = (event) => {
+                // Выводим уведомление, если пришел текст (например "Противник подключился")
+                console.log("Event: ", event)
+                if (event.data && event.data !== "refresh") {
+                    showToast(event.data, 'success');
+                }
+                // В любом случае обновляем состояние игры
+                refreshGameData();
+            };
+
+            ws.onclose = () => {
+                if (indicator) indicator.className = 'ws-indicator ws-offline';
+                console.log("WebSocket Disconnected");
+            };
+
+            ws.onerror = () => {
+                if (indicator) indicator.className = 'ws-indicator ws-offline';
+            };
         }
 
         function showScreen(id) {
@@ -355,7 +387,7 @@
 
         setInterval(() => {
             if (currentGame && currentGame.status === 'Active') refreshGameData();
-        }, 500);
+        }, 10000);
 
         // START
         initLang();

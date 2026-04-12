@@ -19,6 +19,7 @@ from app.models import (
     User,
     Game,
 )
+from app.websocket import manager as ws_manager
 
 app = fastapi.FastAPI()
 
@@ -88,7 +89,9 @@ async def join(
     data: JoinGameRequest,
     service: GameService = Depends(get_game_service)
 ) -> Game:
-    return await service.join_game(data)
+    game = await service.join_game(data)
+    await ws_manager.broadcast_update(game.id)
+    return game
 
 
 @app.post("/api/game/turn")
@@ -96,12 +99,26 @@ async def turn(
     data: MakeTurnRequest,
     service: GameService = Depends(get_game_service)
 ) -> None:
-    return await service.make_turn(data)
+    turn = await service.make_turn(data)
+    await ws_manager.broadcast_update(turn.game_id)
+    return turn
+
+
+@app.post("/api/game/message")
+async def send_message(
+        service: GameService = Depends(get_game_service)
+    ) -> None:
+    game = await service.get_active_game()
+    await ws_manager.broadcast_update(game.id)
 
 
 @app.websocket("/ws/{game_id}")
 async def websocket_endpoint(websocket: WebSocket, game_id: int):
-    await websocket.accept()
-    while True:
-        data = await websocket.receive_text()
-        await websocket.send_text(f"Message text was: {data}")
+    await ws_manager.connect(game_id, websocket)
+    try:
+        while True:
+            # Просто держим соединение открытым
+            await websocket.receive_text()
+    except Exception:
+        # Обработка разрыва соединения (закрытие вкладки и т.д.)
+        ws_manager.disconnect(game_id, websocket)

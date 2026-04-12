@@ -44,6 +44,7 @@ class User(BaseModel):
 
 class Turn(BaseModel):
     id: int
+    game_id: int
     user: User
     simbol: Simbol
     number: int = Field(..., ge=0, le=8)
