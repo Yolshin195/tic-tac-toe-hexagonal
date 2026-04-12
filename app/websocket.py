@@ -18,14 +18,14 @@ class ConnectionManager:
             if not self.active_connections[game_id]:
                 del self.active_connections[game_id]
 
-    async def broadcast_update(self, game_id: int):
+    async def broadcast_update(self, game_id: int, message: str):
         """Отправляет сигнал 'update' всем игрокам в комнате game_id"""
         if game_id in self.active_connections:
             for connection in self.active_connections[game_id]:
                 try:
                     # Можно отправить просто текст "refresh", 
                     # чтобы фронтенд понял: пора вызвать GET /api/game/id
-                    await connection.send_text("refresh")
+                    await connection.send_text(message)
                 except Exception:
                     # Если соединение битое, менеджер очистит его позже или при дисконнекте
                     pass

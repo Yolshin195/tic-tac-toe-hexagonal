@@ -18,6 +18,7 @@ from app.models import (
     MakeTurnRequest,
     User,
     Game,
+    Turn
 )
 from app.websocket import manager as ws_manager
 
@@ -90,7 +91,7 @@ async def join(
     service: GameService = Depends(get_game_service)
 ) -> Game:
     game = await service.join_game(data)
-    await ws_manager.broadcast_update(game.id)
+    await ws_manager.broadcast_update(game.id, f"Присоединился игрок {game.user_two_simbol.value}: {game.user_two.username}")
     return game
 
 
@@ -99,8 +100,8 @@ async def turn(
     data: MakeTurnRequest,
     service: GameService = Depends(get_game_service)
 ) -> None:
-    turn = await service.make_turn(data)
-    await ws_manager.broadcast_update(turn.game_id)
+    turn: Turn = await service.make_turn(data)
+    await ws_manager.broadcast_update(turn.game_id, f"Походил игрок {turn.simbol.value}: {turn.number}")
     return turn
 
 
@@ -109,7 +110,7 @@ async def send_message(
         service: GameService = Depends(get_game_service)
     ) -> None:
     game = await service.get_active_game()
-    await ws_manager.broadcast_update(game.id)
+    await ws_manager.broadcast_update(game.id, "Отпавка тестового сообщения")
 
 
 @app.websocket("/ws/{game_id}")
