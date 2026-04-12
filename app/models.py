@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field
 from app.enums import Simbol, StatusGame
 
 
@@ -62,6 +62,17 @@ class Game(BaseModel):
     user_one_simbol: Simbol
     user_two_simbol: Simbol
     turns: list[Turn] = Field(default_factory=list)
+
+    @computed_field
+    @property
+    def current_user(self) -> User | None:
+        if self.turns:
+            last_turn = max(self.turns, key=lambda turn: turn.id)
+            if self.user_one.id == last_turn.user.id:
+                return self.user_two
+            if self.user_two.id == last_turn.user.id:
+                return self.user_one
+        return None
         
 
 if __name__ == "__main__":

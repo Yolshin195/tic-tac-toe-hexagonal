@@ -3,273 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Крестики-Нолики Online</title>
+    <title>FastAPI Tic-Tac-Toe</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .grid-cell {
-            width: 100px;
-            height: 100px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            cursor: pointer;
-            border: 2px solid #e2e8f0;
-        }
-        .hidden { display: none; }
+        .grid-cell { height: 100px; font-size: 2rem; transition: all 0.2s; }
+        .grid-cell:disabled { cursor: not-allowed; opacity: 0.8; }
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 100; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center font-sans">
 
-    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+    <div id="toast-container"></div>
+
+    <div id="screen-auth" class="bg-white p-8 rounded-lg shadow-md w-96">
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Вход в игру</h2>
+        <div class="space-y-4">
+            <input type="text" id="auth-username" placeholder="Логин" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400 outline-none">
+            <input type="password" id="auth-password" placeholder="Пароль" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400 outline-none">
+            <button onclick="handleAuth('login')" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition">Войти</button>
+            <button onclick="handleAuth('register')" class="w-full bg-gray-200 text-gray-700 p-2 rounded hover:bg-gray-300 transition">Регистрация</button>
+        </div>
+    </div>
+
+    <div id="screen-lobby" class="hidden bg-white p-8 rounded-lg shadow-md w-96">
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Лобби</h2>
+        <div class="space-y-4">
+            <div class="border-b pb-4">
+                <input type="text" id="game-name" placeholder="Название новой игры" class="w-full p-2 border rounded mb-2 outline-none focus:ring-2 focus:ring-green-400">
+                <button onclick="createGame()" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 transition">Создать игру</button>
+            </div>
+            <div>
+                <input type="number" id="join-game-id" placeholder="ID игры" class="w-full p-2 border rounded mb-2 outline-none focus:ring-2 focus:ring-purple-400">
+                <button onclick="joinGame()" class="w-full bg-purple-500 text-white p-2 rounded hover:bg-purple-600 transition">Присоединиться</button>
+            </div>
+            <button onclick="logout()" class="w-full text-red-500 text-sm font-medium hover:underline mt-4">Выйти из аккаунта</button>
+        </div>
+    </div>
+
+    <div id="screen-game" class="hidden w-full max-w-md bg-white p-6 rounded-lg shadow-lg">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="display-game-name" class="text-xl font-bold text-gray-800">Игра</h2>
+            <button onclick="checkActiveGame()" class="text-blue-500 text-sm hover:underline">Обновить</button>
+        </div>
         
-        <section id="auth-section">
-            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Авторизация</h2>
-            <form id="auth-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Имя пользователя</label>
-                    <input type="text" id="username" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Пароль</label>
-                    <input type="password" id="password" required class="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition">Войти</button>
-            </form>
-        </section>
+        <div id="game-status-bar" class="mb-4 p-3 rounded text-center font-bold text-lg"></div>
 
-        <section id="lobby-section" class="hidden">
-            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Меню игры</h2>
-            
-            <div class="space-y-8">
-                <div class="p-4 border border-blue-100 bg-blue-50 rounded-md">
-                    <h3 class="font-semibold mb-2 text-blue-800">Создать новую игру</h3>
-                    <input type="text" id="new-game-name" placeholder="Название игры" class="w-full border p-2 rounded-md mb-2">
-                    <button onclick="createGame()" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600">Создать</button>
-                </div>
-
-                <div class="relative flex py-2 items-center">
-                    <div class="flex-grow border-t border-gray-300"></div>
-                    <span class="flex-shrink mx-4 text-gray-400">или</span>
-                    <div class="flex-grow border-t border-gray-300"></div>
-                </div>
-
-                <div class="p-4 border border-green-100 bg-green-50 rounded-md">
-                    <h3 class="font-semibold mb-2 text-green-800">Присоединиться по коду</h3>
-                    <input type="text" id="game-code" placeholder="Код (ID) игры" class="w-full border p-2 rounded-md mb-2">
-                    <button onclick="joinGame()" class="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600">Войти в игру</button>
-                </div>
-            </div>
-        </section>
-
-        <section id="game-section" class="hidden">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Игра: <span id="display-game-name" class="text-blue-600">...</span></h2>
-                <button onclick="leaveGame()" class="text-xs text-red-500 hover:underline">Выйти</button>
-            </div>
-            
-            <div id="board" class="grid grid-cols-3 gap-2 mx-auto" style="width: 312px;">
-                <div class="grid-cell hover:bg-gray-50" data-index="0"></div>
-                <div class="grid-cell hover:bg-gray-50" data-index="1"></div>
-                <div class="grid-cell hover:bg-gray-50" data-index="2"></div>
-                <div class="grid-cell hover:bg-gray-50" data-index="3"></div>
-                <div class="grid-cell hover:bg-gray-50" data-index="4"></div>
-                <div class="grid-cell hover:bg-gray-50" data-index="5"></div>
-                <div class="grid-cell hover:bg-gray-50" data-index="6"></div>
-                <div class="grid-cell hover:bg-gray-50" data-index="7"></div>
-                <div class="grid-cell hover:bg-gray-50" data-index="8"></div>
+        <div class="grid grid-cols-3 gap-2 mb-6" id="board">
             </div>
 
-            <div id="status" class="mt-6 text-center font-medium text-gray-600">
-                Ожидание хода...
-            </div>
-        </section>
-
+        <div class="flex justify-between items-center bg-gray-50 p-3 rounded text-sm text-gray-600">
+            <div>Вы: <span id="my-username" class="font-bold text-gray-800">-</span></div>
+            <div>Символ: <span id="my-symbol" class="font-black text-blue-600 text-base">-</span></div>
+        </div>
+        <button onclick="showLobby()" class="mt-6 w-full text-gray-400 hover:text-gray-600 transition text-sm">Вернуться в лобби</button>
     </div>
 
     <script>
-        const API_URL = ''; // Укажите URL сервера
-        let accessToken = localStorage.getItem('token');
+        let token = localStorage.getItem('token');
+        let currentUser = null;
         let currentGame = null;
-        let pollingInterval = null;
+        let ws = null;
 
-        // Инициализация при загрузке
-        if (accessToken) {
-            checkAuth();
+        // --- UI HELPERS ---
+        function showToast(message, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `mb-2 p-4 rounded shadow-lg text-white transition-opacity duration-500 ${type === 'error' ? 'bg-red-500' : 'bg-green-500'}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
         }
 
-        /**
-         * Универсальная обертка для API запросов
-         */
-        async function apiCall(endpoint, options = {}) {
-            const url = `${API_URL}${endpoint}`;
+        // --- API HELPERS ---
+        async function apiFetch(url, method = 'GET', body = null, isForm = false) {
+            const headers = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
             
-            const headers = {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            };
-
-            if (accessToken) {
-                headers['Authorization'] = `Bearer ${accessToken}`;
-            }
-
-            try {
-                const response = await fetch(url, { ...options, headers });
-
-                // Если токен невалиден или протух
-                if (response.status === 401 || response.status === 403) {
-                    logout();
-                    return null;
-                }
-
-                return response;
-            } catch (error) {
-                console.error(`Сетевая ошибка (${endpoint}):`, error);
-                return null;
-            }
-        }
-
-        async function checkAuth() {
-            const response = await apiCall('/api/me');
-            if (response && response.ok) {
-                showSection('lobby-section');
-                pollActiveGame();
-            }
-        }
-
-        // --- 1. АВТОРИЗАЦИЯ ---
-        document.getElementById('auth-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            const formData = new URLSearchParams();
-            formData.append('username', username);
-            formData.append('password', password);
-
-            try {
-                const response = await fetch(`${API_URL}/api/login/form`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-                });
-
-                const result = await response.json();
-                if (response.ok) {
-                    accessToken = result.access_token;
-                    localStorage.setItem('token', accessToken);
-                    showSection('lobby-section');
-                    pollActiveGame();
+            let fetchOptions = { method, headers };
+            if (body) {
+                if (isForm) {
+                    headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                    fetchOptions.body = new URLSearchParams(body);
                 } else {
-                    alert(result.detail || "Ошибка входа");
+                    headers['Content-Type'] = 'application/json';
+                    fetchOptions.body = JSON.stringify(body);
                 }
-            } catch (err) {
-                alert("Ошибка соединения с сервером");
             }
-        });
 
-        // --- 2. ЛОББИ ---
-        async function createGame() {
-            const name = document.getElementById('new-game-name').value;
-            const response = await apiCall('/api/game', {
-                method: 'POST',
-                body: JSON.stringify({ name: name })
+            try {
+                const response = await fetch(url, fetchOptions);
+                const data = await response.json();
+                if (!response.ok) {
+                    // Обработка разных форматов ошибок FastAPI
+                    const msg = data.detail ? (typeof data.detail === 'string' ? data.detail : data.detail[0].msg) : 'Ошибка сервера';
+                    showToast(msg);
+                    throw new Error(msg);
+                }
+                return data;
+            } catch (e) {
+                if (e.message.includes('fetch')) showToast('Нет связи с сервером');
+                throw e;
+            }
+        }
+
+        // --- CORE LOGIC ---
+        function initBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'grid-cell bg-gray-50 border-2 border-gray-200 rounded-xl hover:bg-blue-50 flex items-center justify-center font-bold';
+                btn.onclick = () => makeMove(i);
+                btn.id = `cell-${i}`;
+                board.appendChild(btn);
+            }
+        }
+
+        async function handleAuth(type) {
+            const username = document.getElementById('auth-username').value;
+            const password = document.getElementById('auth-password').value;
+            if (!username || !password) return showToast('Заполните все поля');
+
+            try {
+                let res;
+                if (type === 'register') {
+                    res = await apiFetch('/api/register', 'POST', { username, password });
+                    showToast('Регистрация успешна!', 'success');
+                } else {
+                    res = await apiFetch('/api/login/form', 'POST', { username, password }, true);
+                }
+                token = res.access_token;
+                localStorage.setItem('token', token);
+                initApp();
+            } catch (e) {}
+        }
+
+        async function makeMove(cellIndex) {
+            if (!currentGame || currentGame.status !== 'Active') return;
+            try {
+                await apiFetch('/api/game/turn', 'POST', { number: cellIndex });
+                refreshGameData();
+            } catch (e) {}
+        }
+
+        // --- RENDER LOGIC ---
+        function renderGame(game) {
+            currentGame = game;
+            showScreen('screen-game');
+            document.getElementById('display-game-name').innerText = game.name;
+            
+            const isUserOne = game.user_one && game.user_one.id === currentUser.id;
+            const mySymbol = isUserOne ? game.user_one_simbol : game.user_two_simbol;
+            document.getElementById('my-symbol').innerText = mySymbol;
+
+            // Обновляем ячейки
+            for (let i = 0; i < 9; i++) {
+                const cell = document.getElementById(`cell-${i}`);
+                cell.innerText = '';
+                cell.className = 'grid-cell bg-gray-50 border-2 border-gray-200 rounded-xl hover:bg-blue-50 flex items-center justify-center font-bold';
+            }
+            
+            game.turns.forEach(turn => {
+                const cell = document.getElementById(`cell-${turn.number}`);
+                cell.innerText = turn.simbol;
+                cell.className = `grid-cell border-2 rounded-xl flex items-center justify-center font-bold ${turn.simbol === 'X' ? 'text-red-500 bg-red-50 border-red-200' : 'text-blue-500 bg-blue-50 border-blue-200'}`;
             });
 
-            if (response && response.ok) {
-                const game = await response.json();
-                renderGame(game);
+            // Статус и логика ходов
+            const statusBar = document.getElementById('game-status-bar');
+            
+            if (game.status === 'Active') {
+                if (!game.user_two) {
+                    statusBar.innerText = "Ожидание противника...";
+                    statusBar.className = "mb-4 p-3 rounded text-center bg-gray-100 text-gray-500";
+                    return;
+                }
+
+                // Определяем чей сейчас ход
+                let nextPlayerId;
+                if (game.turns.length === 0) {
+                    nextPlayerId = game.user_one.id;
+                } else {
+                    const lastTurn = game.turns.reduce((max, t) => t.id > max.id ? t : max, game.turns[0]);
+                    nextPlayerId = (lastTurn.user.id === game.user_one.id) ? game.user_two.id : game.user_one.id;
+                }
+
+                if (nextPlayerId === currentUser.id) {
+                    statusBar.innerText = "Твой ход!";
+                    statusBar.className = "mb-4 p-3 rounded text-center bg-green-100 text-green-700 animate-pulse";
+                } else {
+                    const opponent = isUserOne ? (game.user_two ? game.user_two.username : '...') : game.user_one.username;
+                    statusBar.innerText = `Ходит ${opponent}`;
+                    statusBar.className = "mb-4 p-3 rounded text-center bg-yellow-100 text-yellow-700";
+                }
+            } else {
+                // Финал игры
+                let resultText = "";
+                if (game.status === 'Draw') resultText = "Ничья!";
+                else if (game.status === 'Win_user_one') resultText = (isUserOne ? "Ты победил!" : `Победил ${game.user_one.username}`);
+                else if (game.status === 'Win_user_two') resultText = (!isUserOne ? "Ты победил!" : `Победил ${game.user_two.username}`);
+                
+                statusBar.innerText = resultText;
+                statusBar.className = "mb-4 p-3 rounded text-center bg-indigo-600 text-white";
             }
+
+            setupWebSocket(game.id);
+        }
+
+        // --- ОСТАЛЬНЫЕ ФУНКЦИИ ---
+        function showScreen(id) {
+            ['screen-auth', 'screen-lobby', 'screen-game'].forEach(s => 
+                document.getElementById(s).classList.toggle('hidden', s !== id)
+            );
+        }
+
+        async function initApp() {
+            if (!token) return showScreen('screen-auth');
+            initBoard();
+            try {
+                currentUser = await apiFetch('/api/me');
+                document.getElementById('my-username').innerText = currentUser.username;
+                checkActiveGame();
+            } catch (e) { logout(); }
+        }
+
+        async function checkActiveGame() {
+            try {
+                const game = await apiFetch('/api/game');
+                game && game.id ? renderGame(game) : showLobby();
+            } catch (e) { showLobby(); }
+        }
+
+        function showLobby() {
+            currentGame = null;
+            if(ws) ws.close();
+            showScreen('screen-lobby');
+        }
+
+        async function createGame() {
+            const name = document.getElementById('game-name').value;
+            if (!name) return showToast('Введите название игры');
+            try {
+                const game = await apiFetch('/api/game', 'POST', { name });
+                renderGame(game);
+            } catch(e) {}
         }
 
         async function joinGame() {
-            const gameId = parseInt(document.getElementById('game-code').value);
-            const response = await apiCall('/api/game/join', {
-                method: 'POST',
-                body: JSON.stringify({ game_id: gameId })
-            });
-
-            if (response && response.ok) {
-                const game = await response.json();
+            const game_id = parseInt(document.getElementById('join-game-id').value);
+            if (!game_id) return showToast('Введите ID игры');
+            try {
+                const game = await apiFetch('/api/game/join', 'POST', { game_id });
                 renderGame(game);
-            } else if (response) {
-                const err = await response.json();
-                alert(err.detail || "Ошибка подключения");
-            }
+            } catch(e) {}
         }
 
-        // --- 3. ИГРОВОЙ ПРОЦЕСС ---
-        async function makeMove(cellIndex) {
-            const response = await apiCall('/api/game/turn', {
-                method: 'POST',
-                body: JSON.stringify({ number: cellIndex })
-            });
-            
-            if (response && response.ok) {
-                await fetchCurrentGame();
-            }
-        }
-
-        async function fetchCurrentGame() {
-            const response = await apiCall('/api/game');
-            if (response && response.ok) {
-                const game = await response.json();
+        async function refreshGameData() {
+            if (!currentGame) return;
+            try {
+                const game = await apiFetch(`/api/game/${currentGame.id}`);
                 renderGame(game);
-            }
+            } catch(e) {}
         }
 
-        function renderGame(game) {
-            currentGame = game;
-            showSection('game-section');
-            document.getElementById('display-game-name').innerText = `${game.name} (ID: ${game.id})`;
-            
-            const cells = document.querySelectorAll('.grid-cell');
-            cells.forEach(c => c.innerText = '');
-
-            game.turns.forEach(turn => {
-                if (cells[turn.number]) cells[turn.number].innerText = turn.simbol;
-            });
-
-            const statusEl = document.getElementById('status');
-            if (!game.user_two) {
-                statusEl.innerText = "Ожидание второго игрока...";
-            } else {
-                statusEl.innerText = "Игра идет";
-            }
-        }
-
-        function pollActiveGame() {
-            if (pollingInterval) clearInterval(pollingInterval);
-            pollingInterval = setInterval(fetchCurrentGame, 2000);
+        function setupWebSocket(gameId) {
+            if (ws && ws.url.includes(`/ws/${gameId}`)) return;
+            if (ws) ws.close();
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/${gameId}`);
+            ws.onmessage = () => refreshGameData();
         }
 
         function logout() {
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-                pollingInterval = null;
-            }
             localStorage.removeItem('token');
-            accessToken = null;
-            currentGame = null;
-            
-            // Очистка интерфейса
-            const cells = document.querySelectorAll('.grid-cell');
-            cells.forEach(c => c.innerText = '');
-            
-            showSection('auth-section');
+            location.reload();
         }
 
-        function showSection(id) {
-            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-            document.getElementById(id).classList.remove('hidden');
-        }
+        setInterval(() => {
+            if (currentGame && currentGame.status === 'Active') refreshGameData();
+        }, 4000);
 
-        document.querySelectorAll('.grid-cell').forEach(cell => {
-            cell.addEventListener('click', (e) => {
-                const index = parseInt(e.target.dataset.index);
-                makeMove(index);
-            });
-        });
+        initApp();
     </script>
 </body>
 </html>
