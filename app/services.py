@@ -82,7 +82,12 @@ class GameService:
         )
 
         game = await self.repo.save(game)
-        return Game.model_validate(game, from_attributes=True)
+
+        active_game = await self.repo.get_active_by_user_id(self.user.id)
+        if active_game is None:
+            raise GameServiceError(f"Не смогли запросить игру повторно, обновите страницу")
+
+        return Game.model_validate(active_game, from_attributes=True)
 
     async def join_game(self, data: JoinGameRequest) -> Game:
         active_game = await self.repo.get_game_for_join(data.game_id)
