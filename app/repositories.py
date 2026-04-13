@@ -47,6 +47,7 @@ class GameRepository:
                     GameEntity.user_two_id == user_id,
                 )
             )
+            .order_by(GameEntity.id.desc())
             .options(
                 joinedload(GameEntity.user_one),
                 joinedload(GameEntity.user_two),

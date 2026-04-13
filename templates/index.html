@@ -1,405 +1,1071 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FastAPI Tic-Tac-Toe</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .grid-cell { height: 100px; font-size: 2rem; transition: all 0.2s; }
-        .grid-cell:disabled { cursor: not-allowed; opacity: 0.8; }
-        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 100; }
-        .ws-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: 5px; }
-        .ws-online { background-color: #22c55e; box-shadow: 0 0 5px #22c55e; }
-        .ws-offline { background-color: #ef4444; }
-    </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>XO ARENA</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #07070d;
+    --surface: #0e0e18;
+    --card: #13131f;
+    --border: #1e1e30;
+    --accent: #d4ff47;
+    --accent2: #ff4f6e;
+    --accent3: #47c8ff;
+    --text: #e2e2f0;
+    --muted: #4a4a6a;
+    --font-main: 'JetBrains Mono', 'Sarabun', monospace;
+    --font-display: 'Bebas Neue', 'Sarabun', cursive;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-main);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body.lang-th { font-family: 'Sarabun', 'JetBrains Mono', sans-serif; }
+
+  /* GRID BG */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(212,255,71,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(212,255,71,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 85% 5%, rgba(212,255,71,0.08) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 60% at 5% 95%, rgba(255,79,110,0.06) 0%, transparent 55%),
+      radial-gradient(ellipse 40% 40% at 50% 50%, rgba(71,200,255,0.03) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* SCREENS */
+  .screen { display: none; min-height: 100vh; position: relative; z-index: 1; }
+  .screen.active { display: flex; }
+
+  /* TYPOGRAPHY */
+  .font-display { font-family: var(--font-display); letter-spacing: 0.05em; }
+
+  /* INPUTS */
+  .inp {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-main);
+    font-size: 13px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .inp:focus { border-color: var(--accent); }
+  .inp::placeholder { color: var(--muted); }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px 24px; border-radius: 6px; font-family: var(--font-main);
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.18s;
+    border: none; text-decoration: none; white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--accent); color: #07070d; font-weight: 700;
+  }
+  .btn-primary:hover { background: #c8f030; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(212,255,71,0.25); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-ghost {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger {
+    background: transparent; color: var(--accent2); border: 1px solid var(--accent2);
+  }
+  .btn-danger:hover { background: var(--accent2); color: #fff; }
+  .btn-sm { padding: 8px 14px; font-size: 12px; }
+  .btn-full { width: 100%; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+  /* CARD */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  /* BADGE */
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 500;
+  }
+  .badge-active { background: rgba(212,255,71,0.12); color: var(--accent); border: 1px solid rgba(212,255,71,0.25); }
+  .badge-win { background: rgba(71,200,255,0.12); color: var(--accent3); border: 1px solid rgba(71,200,255,0.25); }
+  .badge-lose { background: rgba(255,79,110,0.12); color: var(--accent2); border: 1px solid rgba(255,79,110,0.25); }
+  .badge-draw { background: rgba(255,255,255,0.06); color: var(--muted); border: 1px solid var(--border); }
+  .badge-waiting { background: rgba(255,200,47,0.1); color: #ffc82f; border: 1px solid rgba(255,200,47,0.25); }
+
+  /* GAME BOARD */
+  .board-cell {
+    aspect-ratio: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-size: clamp(28px, 8vw, 52px);
+    position: relative;
+    overflow: hidden;
+  }
+  .board-cell:hover:not(.taken) { border-color: var(--accent); background: rgba(212,255,71,0.05); }
+  .board-cell.taken { cursor: default; }
+  .board-cell .sym-x { color: var(--accent); text-shadow: 0 0 20px rgba(212,255,71,0.5); }
+  .board-cell .sym-o { color: var(--accent2); text-shadow: 0 0 20px rgba(255,79,110,0.5); }
+  .board-cell.win-cell { background: rgba(212,255,71,0.08); border-color: rgba(212,255,71,0.5); }
+  @keyframes pop { 0%{transform:scale(0.5);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+  .board-cell .sym-x, .board-cell .sym-o { animation: pop 0.25s ease; }
+
+  /* CHAT */
+  #chat-messages { overflow-y: auto; scroll-behavior: smooth; }
+  #chat-messages::-webkit-scrollbar { width: 4px; }
+  #chat-messages::-webkit-scrollbar-track { background: transparent; }
+  #chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .msg-system { color: var(--muted); font-size: 11px; font-style: italic; padding: 3px 0; }
+  .msg-user { padding: 4px 0; }
+  .msg-name { color: var(--accent); font-weight: 700; font-size: 11px; }
+  .msg-error { color: var(--accent2); font-size: 11px; font-style: italic; }
+
+  /* LANG SWITCH */
+  .lang-btn { padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 700;
+    background: transparent; color: var(--muted); border: 1px solid transparent; transition: all 0.15s; font-family: var(--font-main); }
+  .lang-btn.active { background: rgba(212,255,71,0.12); color: var(--accent); border-color: rgba(212,255,71,0.3); }
+  .lang-btn:hover:not(.active) { color: var(--text); }
+
+  /* ANIMATIONS */
+  @keyframes fade-up { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+  @keyframes glow-pulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+  .animate-fade-up { animation: fade-up 0.4s ease forwards; }
+  .animate-fade-up-d1 { animation: fade-up 0.4s 0.1s ease both; }
+  .animate-fade-up-d2 { animation: fade-up 0.4s 0.2s ease both; }
+  .animate-fade-up-d3 { animation: fade-up 0.4s 0.3s ease both; }
+
+  /* STATUS DOT */
+  .dot-active { width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;animation:glow-pulse 1.5s infinite; }
+
+  /* MOBILE OVERRIDES */
+  @media(max-width:768px) {
+    .game-layout { flex-direction: column !important; }
+    .chat-panel { height: 260px !important; }
+  }
+
+  /* SCROLLBAR global */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+  }
+  .toast-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 18px; font-size: 13px; pointer-events: all;
+    animation: fade-up 0.3s ease;
+    max-width: 300px;
+  }
+  .toast-item.toast-ok { border-color: rgba(212,255,71,0.4); color: var(--accent); }
+  .toast-item.toast-err { border-color: rgba(255,79,110,0.4); color: var(--accent2); }
+
+  /* Tabs auth */
+  .auth-tab { padding: 10px 0; font-size: 13px; font-weight: 700; cursor: pointer;
+    color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.18s;
+    background: none; border-top: none; border-left: none; border-right: none;
+    font-family: var(--font-main); flex: 1; }
+  .auth-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500;
+    display: none; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+
+  /* Filter toggle */
+  .filter-btn { padding: 6px 14px; border-radius: 4px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: transparent;
+    color: var(--muted); transition: all 0.15s; font-family: var(--font-main); }
+  .filter-btn.active { background: rgba(212,255,71,0.1); color: var(--accent); border-color: rgba(212,255,71,0.4); }
+
+  /* Header */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(7,7,13,0.85); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+</style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center font-sans p-4">
+<body>
 
-    <div id="toast-container"></div>
+<!-- ═══════════════════════════════════════════
+     TOAST
+═══════════════════════════════════════════ -->
+<div id="toast"></div>
 
-    <div class="fixed top-4 right-4 z-50">
-        <select id="lang-select" onchange="changeLang(this.value)" class="p-2 border rounded shadow-sm bg-white text-sm outline-none">
-            <option value="ru">Русский</option>
-            <option value="en">English</option>
-            <option value="th">ไทย</option>
-        </select>
+<!-- ═══════════════════════════════════════════
+     SCREEN 1: AUTH
+═══════════════════════════════════════════ -->
+<div id="screen-auth" class="screen active flex-col items-center justify-center px-4 py-16">
+  <div class="w-full max-w-sm animate-fade-up">
+    <!-- Logo -->
+    <div class="text-center mb-10">
+      <div class="font-display text-7xl tracking-widest mb-1" style="color:var(--accent)">XO</div>
+      <div class="font-display text-2xl tracking-[0.4em]" style="color:var(--muted)">ARENA</div>
     </div>
 
-    <div id="screen-auth" class="bg-white p-8 rounded-lg shadow-md w-96">
-        <h2 data-t="auth_title" class="text-2xl font-bold mb-6 text-center text-gray-800">Вход в игру</h2>
-        <div class="space-y-4">
-            <input type="text" id="auth-username" data-tp="placeholder_login" placeholder="Логин" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400 outline-none">
-            <input type="password" id="auth-password" data-tp="placeholder_pass" placeholder="Пароль" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400 outline-none">
-            <button onclick="handleAuth('login')" data-t="btn_login" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition">Войти</button>
-            <button onclick="handleAuth('register')" data-t="btn_reg" class="w-full bg-gray-200 text-gray-700 p-2 rounded hover:bg-gray-300 transition">Регистрация</button>
-        </div>
+    <!-- Lang switcher (auth) -->
+    <div class="flex justify-center gap-2 mb-8">
+      <button class="lang-btn" onclick="setLang('ru')">RU</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('th')">TH</button>
     </div>
 
-    <div id="screen-lobby" class="hidden bg-white p-8 rounded-lg shadow-md w-96">
-        <h2 data-t="lobby_title" class="text-2xl font-bold mb-6 text-center text-gray-800">Лобби</h2>
-        <div class="space-y-4">
-            <div class="border-b pb-4">
-                <input type="text" id="game-name" data-tp="placeholder_gname" placeholder="Название новой игры" class="w-full p-2 border rounded mb-2 outline-none focus:ring-2 focus:ring-green-400">
-                <button onclick="createGame()" data-t="btn_create" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 transition">Создать игру</button>
-            </div>
-            <div>
-                <input type="number" id="join-game-id" data-tp="placeholder_gid" placeholder="ID игры" class="w-full p-2 border rounded mb-2 outline-none focus:ring-2 focus:ring-purple-400">
-                <button onclick="joinGame()" data-t="btn_join" class="w-full bg-purple-500 text-white p-2 rounded hover:bg-purple-600 transition">Присоединиться</button>
-            </div>
-            <button onclick="logout()" data-t="btn_logout" class="w-full text-red-500 text-sm font-medium hover:underline mt-4">Выйти из аккаунта</button>
+    <!-- Auth card -->
+    <div class="card p-6 animate-fade-up-d1">
+      <!-- Tabs -->
+      <div class="flex border-b mb-6" style="border-color:var(--border)">
+        <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')" data-i18n="login"></button>
+        <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')" data-i18n="register"></button>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <div>
+          <label class="text-xs mb-1.5 block" style="color:var(--muted)" data-i18n="username"></label>
+          <input id="auth-username" class="inp" type="text" autocomplete="username" data-i18n-placeholder="username_ph"/>
         </div>
+        <div>
+          <label class="text-xs mb-1.5 block" style="color:var(--muted)" data-i18n="password"></label>
+          <input id="auth-password" class="inp" type="password" autocomplete="current-password" data-i18n-placeholder="password_ph"/>
+        </div>
+        <button class="btn btn-primary btn-full mt-2" id="auth-submit-btn" onclick="submitAuth()">
+          <span data-i18n="login"></span>
+        </button>
+        <p id="auth-error" class="text-xs text-center hidden" style="color:var(--accent2)"></p>
+      </div>
+    </div>
+    <p class="text-center text-xs mt-6 animate-fade-up-d2" style="color:var(--muted)">XO ARENA © 2025</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN 2: LOBBY
+═══════════════════════════════════════════ -->
+<div id="screen-lobby" class="screen flex-col" style="min-height:100vh">
+
+  <!-- Header -->
+  <header class="px-4 md:px-8 py-3 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <span class="font-display text-3xl" style="color:var(--accent)">XO</span>
+      <span class="font-display text-base tracking-widest" style="color:var(--muted)">ARENA</span>
+    </div>
+    <div class="flex items-center gap-2 md:gap-4">
+      <!-- Lang -->
+      <div class="flex gap-1">
+        <button class="lang-btn" onclick="setLang('ru')">RU</button>
+        <button class="lang-btn" onclick="setLang('en')">EN</button>
+        <button class="lang-btn" onclick="setLang('th')">TH</button>
+      </div>
+      <!-- User -->
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-md" style="background:var(--surface);border:1px solid var(--border)">
+        <span class="text-xs" style="color:var(--muted)">@</span>
+        <span id="lobby-username" class="text-xs font-bold" style="color:var(--accent)"></span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()" data-i18n="logout"></button>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="flex-1 px-4 md:px-8 py-6 max-w-4xl mx-auto w-full">
+
+    <!-- Actions row -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <h1 class="font-display text-3xl md:text-4xl" data-i18n="my_games"></h1>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost btn-sm" onclick="openJoinModal()" data-i18n="join_game"></button>
+        <button class="btn btn-primary btn-sm" onclick="openCreateModal()" data-i18n="new_game"></button>
+      </div>
     </div>
 
-    <div id="screen-game" class="hidden w-full max-w-5xl bg-white rounded-lg shadow-lg overflow-hidden flex flex-col md:flex-row h-[600px]">
-        <div class="flex-1 p-6 border-r flex flex-col">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">
-                    <span id="display-game-name">Игра</span> 
-                    <span id="display-game-id" class="text-sm font-normal text-gray-500 ml-2"></span>
-                    <span id="ws-status" class="ws-indicator ws-offline"></span>
-                </h2>
-                <button onclick="checkActiveGame()" data-t="btn_refresh" class="text-blue-500 text-sm hover:underline">Обновить</button>
-            </div>
-            
-            <div id="game-status-bar" class="mb-4 p-3 rounded text-center font-bold text-lg"></div>
-            <div class="grid grid-cols-3 gap-2 mb-6 mx-auto w-full max-w-[320px]" id="board"></div>
-
-            <div class="mt-auto flex justify-between items-center bg-gray-50 p-3 rounded text-sm text-gray-600">
-                <div><span data-t="label_you">Вы</span>: <span id="my-username" class="font-bold text-gray-800">-</span></div>
-                <div><span data-t="label_sym">Символ</span>: <span id="my-symbol" class="font-black text-blue-600 text-base">-</span></div>
-            </div>
-            <button onclick="showLobby()" data-t="btn_back" class="mt-4 w-full text-gray-400 hover:text-gray-600 transition text-sm">Вернуться в лобби</button>
-        </div>
-
-        <div class="w-full md:w-80 bg-gray-50 flex flex-col h-full border-t md:border-t-0">
-            <div class="p-4 border-b bg-white font-bold text-gray-700 flex items-center">
-                <span class="mr-2">💬</span> Chat & Logs
-            </div>
-            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-2 text-sm">
-                </div>
-            <div class="p-3 bg-white border-t flex gap-2">
-                <input type="text" id="chat-input" placeholder="Сообщение..." class="flex-1 p-2 border rounded text-sm outline-none focus:ring-2 focus:ring-blue-400" onkeypress="if(event.key==='Enter') sendMessage()">
-                <button onclick="sendMessage()" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">➤</button>
-            </div>
-        </div>
+    <!-- Filter -->
+    <div class="flex gap-2 mb-5">
+      <button class="filter-btn active" id="filter-all" onclick="setFilter(null)" data-i18n="filter_all"></button>
+      <button class="filter-btn" id="filter-active" onclick="setFilter('Active')" data-i18n="filter_active"></button>
+      <button class="filter-btn" id="filter-finished" onclick="setFilter('finished')" data-i18n="filter_finished"></button>
     </div>
 
-    <script>
-        // --- LOCALIZATION ---
-        const i18n = {
-            ru: {
-                auth_title: "Вход в игру", placeholder_login: "Логин", placeholder_pass: "Пароль", btn_login: "Войти", btn_reg: "Регистрация",
-                lobby_title: "Лобби", placeholder_gname: "Название новой игры", btn_create: "Создать игру", placeholder_gid: "ID игры", btn_join: "Присоединиться", btn_logout: "Выйти из аккаунта",
-                btn_refresh: "Обновить", label_you: "Вы", label_sym: "Символ", btn_back: "Вернуться в лобби",
-                status_waiting: "Ожидание противника...", status_your_turn: "Твой ход!", status_turn_of: "Ходит {n}",
-                res_draw: "Ничья!", res_win_you: "Ты победил!", res_win_other: "Победил {n}",
-                err_fields: "Заполните все поля", err_gname: "Введите название игры", err_gid: "Введите ID игры", err_conn: "Нет связи с сервером"
-            },
-            en: {
-                auth_title: "Sign In", placeholder_login: "Username", placeholder_pass: "Password", btn_login: "Login", btn_reg: "Register",
-                lobby_title: "Lobby", placeholder_gname: "Game Name", btn_create: "Create Game", placeholder_gid: "Game ID", btn_join: "Join", btn_logout: "Logout",
-                btn_refresh: "Refresh", label_you: "You", label_sym: "Symbol", btn_back: "Back to Lobby",
-                status_waiting: "Waiting for opponent...", status_your_turn: "Your turn!", status_turn_of: "{n}'s turn",
-                res_draw: "Draw!", res_win_you: "You won!", res_win_other: "{n} won!",
-                err_fields: "Fill all fields", err_gname: "Enter game name", err_gid: "Enter game ID", err_conn: "No connection"
-            },
-            th: {
-                auth_title: "เข้าสู่เกม", placeholder_login: "ชื่อผู้ใช้", placeholder_pass: "รหัสผ่าน", btn_login: "เข้าสู่ระบบ", btn_reg: "ลงทะเบียน",
-                lobby_title: "ล็อบบี้", placeholder_gname: "ชื่อเกม", btn_create: "สร้างเกม", placeholder_gid: "ไอดีเกม", btn_join: "เข้าร่วม", btn_logout: "ออกจากระบบ",
-                btn_refresh: "รีเฟรช", label_you: "คุณ", label_sym: "สัญลักษณ์", btn_back: "กลับไปล็อบบี้",
-                status_waiting: "รอคู่ต่อสู้...", status_your_turn: "ตาของคุณ!", status_turn_of: "ตาของ {n}",
-                res_draw: "เสมอ!", res_win_you: "คุณชนะ!", res_win_other: "{n} ชนะ!",
-                err_fields: "กรุณากรอกข้อมูลให้ครบ", err_gname: "กรุณาระบุชื่อเกม", err_gid: "กรุณาระบุไอดีเกม", err_conn: "ไม่มีการเชื่อมต่อกับเซิร์ฟвер"
-            }
-        };
+    <!-- Games list -->
+    <div id="games-list" class="flex flex-col gap-3">
+      <div class="text-center py-12" style="color:var(--muted)">
+        <div class="font-display text-2xl mb-2" data-i18n="loading"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        let currentLang = 'en';
-        let token = localStorage.getItem('token');
-        let currentUser = null;
-        let currentGame = null;
-        let ws = null;
+<!-- ═══════════════════════════════════════════
+     SCREEN 3: GAME
+═══════════════════════════════════════════ -->
+<div id="screen-game" class="screen flex-col" style="min-height:100vh">
 
-        function initLang() {
-            const browserLang = navigator.language.split('-')[0];
-            currentLang = Object.keys(i18n).includes(browserLang) ? browserLang : 'en';
-            document.getElementById('lang-select').value = currentLang;
-            translatePage();
-        }
+  <!-- Header -->
+  <header class="px-4 md:px-8 py-3 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <button onclick="goToLobby()" class="btn btn-ghost btn-sm" style="padding:6px 10px">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <span id="game-name" class="font-display text-xl" style="color:var(--text)"></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="flex gap-1">
+        <button class="lang-btn" onclick="setLang('ru')">RU</button>
+        <button class="lang-btn" onclick="setLang('en')">EN</button>
+        <button class="lang-btn" onclick="setLang('th')">TH</button>
+      </div>
+      <div id="game-status-badge"></div>
+    </div>
+  </header>
 
-        function changeLang(lang) {
-            currentLang = lang;
-            translatePage();
-            if (currentGame) renderGame(currentGame);
-        }
+  <!-- Game layout -->
+  <div class="flex-1 flex game-layout gap-4 p-4 md:p-6 max-w-5xl mx-auto w-full">
 
-        function t(key, params = {}) {
-            let text = i18n[currentLang][key] || key;
-            Object.keys(params).forEach(p => text = text.replace(`{${p}}`, params[p]));
-            return text;
-        }
+    <!-- Left: board + info -->
+    <div class="flex-1 flex flex-col gap-4">
 
-        function translatePage() {
-            document.querySelectorAll('[data-t]').forEach(el => el.innerText = t(el.getAttribute('data-t')));
-            document.querySelectorAll('[data-tp]').forEach(el => el.placeholder = t(el.getAttribute('data-tp')));
-        }
+      <!-- Players -->
+      <div class="card p-4 flex items-center justify-between gap-2">
+        <div id="player-one" class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center font-display text-lg" style="background:rgba(212,255,71,0.1);color:var(--accent)">X</div>
+          <div>
+            <div id="p1-name" class="text-xs font-bold"></div>
+            <div class="text-xs" style="color:var(--muted)" data-i18n="symbol_x"></div>
+          </div>
+        </div>
+        <div id="turn-indicator" class="text-center">
+          <div class="font-display text-xl" style="color:var(--muted)">VS</div>
+        </div>
+        <div id="player-two" class="flex items-center gap-2 flex-row-reverse">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center font-display text-lg" style="background:rgba(255,79,110,0.1);color:var(--accent2)">O</div>
+          <div class="text-right">
+            <div id="p2-name" class="text-xs font-bold" data-i18n="waiting_player"></div>
+            <div class="text-xs" style="color:var(--muted)" data-i18n="symbol_o"></div>
+          </div>
+        </div>
+      </div>
 
-        // --- CHAT LOGIC ---
-        function addChatMessage(text, type = 'system') {
-            const container = document.getElementById('chat-messages');
-            const msgEl = document.createElement('div');
-            
-            if (type === 'error') {
-                msgEl.className = 'p-2 rounded bg-red-100 text-red-700 border-l-4 border-red-500';
-                msgEl.innerText = `⚠️ ${text}`;
-            } else if (type === 'chat') {
-                msgEl.className = 'p-2 rounded bg-blue-100 text-blue-800 self-end';
-                msgEl.innerText = text;
-            } else {
-                msgEl.className = 'p-2 italic text-gray-500 text-xs text-center';
-                msgEl.innerText = text;
-            }
-            
-            container.appendChild(msgEl);
-            container.scrollTop = container.scrollHeight;
-        }
+      <!-- Board -->
+      <div class="card p-4 md:p-6">
+        <div id="board" class="grid grid-cols-3 gap-2 md:gap-3 w-full" style="max-width:380px;margin:0 auto">
+          <!-- cells generated by JS -->
+        </div>
+      </div>
 
-        async function sendMessage() {
-            const input = document.getElementById('chat-input');
-            const message = input.value.trim();
-            if (!message) return;
-            try {
-                await apiFetch('/api/game/message', 'POST', { message });
-                input.value = '';
-            } catch (e) {
-                addChatMessage(e.message, 'error');
-            }
-        }
+      <!-- Game result banner -->
+      <div id="result-banner" class="card p-4 text-center hidden">
+        <div id="result-text" class="font-display text-3xl mb-1"></div>
+        <div id="result-sub" class="text-xs" style="color:var(--muted)"></div>
+        <button class="btn btn-primary btn-sm mt-3" onclick="goToLobby()" data-i18n="back_lobby"></button>
+      </div>
+    </div>
 
-        // --- API & CORE ---
-        function showToast(message, type = 'error') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `mb-2 p-4 rounded shadow-lg text-white transition-opacity duration-500 ${type === 'error' ? 'bg-red-500' : 'bg-green-500'}`;
-            toast.innerText = t(message) || message;
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 500);
-            }, 3000);
-            if (type === 'error') addChatMessage(t(message) || message, 'error');
-        }
+    <!-- Right: chat -->
+    <div class="chat-panel flex flex-col card" style="width:280px;min-width:220px;height:auto;max-height:550px">
+      <div class="px-4 py-3 border-b flex items-center gap-2" style="border-color:var(--border)">
+        <div class="dot-active"></div>
+        <span class="text-xs font-bold" data-i18n="chat"></span>
+      </div>
+      <div id="chat-messages" class="flex-1 p-3 flex flex-col gap-1 overflow-y-auto" style="min-height:0"></div>
+      <div class="p-3 border-t flex gap-2" style="border-color:var(--border)">
+        <input id="chat-input" class="inp" style="padding:8px 12px;font-size:12px" type="text" data-i18n-placeholder="msg_ph" onkeydown="if(event.key==='Enter')sendChatMessage()"/>
+        <button class="btn btn-primary btn-sm" onclick="sendChatMessage()" style="padding:8px 14px">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
-        async function apiFetch(url, method = 'GET', body = null, isForm = false) {
-            const headers = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-            let fetchOptions = { method, headers };
-            if (body) {
-                if (isForm) {
-                    headers['Content-Type'] = 'application/x-www-form-urlencoded';
-                    fetchOptions.body = new URLSearchParams(body);
-                } else {
-                    headers['Content-Type'] = 'application/json';
-                    fetchOptions.body = JSON.stringify(body);
-                }
-            }
-            try {
-                const response = await fetch(url, fetchOptions);
-                const data = await response.json();
-                if (!response.ok) {
-                    const msg = data.detail ? (typeof data.detail === 'string' ? data.detail : data.detail[0].msg) : 'Error';
-                    throw new Error(msg);
-                }
-                return data;
-            } catch (e) {
-                if (e.message.includes('fetch')) showToast('err_conn');
-                else showToast(e.message);
-                throw e;
-            }
-        }
+<!-- ═══════════════════════════════════════════
+     MODAL: CREATE GAME
+═══════════════════════════════════════════ -->
+<div id="modal-create" class="modal-backdrop" onclick="if(event.target===this)closeModal('modal-create')">
+  <div class="card p-6 w-full max-w-sm animate-fade-up">
+    <h2 class="font-display text-2xl mb-5" data-i18n="new_game"></h2>
+    <div class="flex flex-col gap-4">
+      <div>
+        <label class="text-xs mb-1.5 block" style="color:var(--muted)" data-i18n="game_name"></label>
+        <input id="create-name" class="inp" type="text" data-i18n-placeholder="game_name_ph"/>
+      </div>
+      <div class="flex gap-2 mt-1">
+        <button class="btn btn-ghost flex-1" onclick="closeModal('modal-create')" data-i18n="cancel"></button>
+        <button class="btn btn-primary flex-1" onclick="createGame()" data-i18n="create"></button>
+      </div>
+    </div>
+  </div>
+</div>
 
-        function initBoard() {
-            const board = document.getElementById('board');
-            board.innerHTML = '';
-            for (let i = 0; i < 9; i++) {
-                const btn = document.createElement('button');
-                btn.className = 'grid-cell bg-gray-50 border-2 border-gray-200 rounded-xl hover:bg-blue-50 flex items-center justify-center font-bold';
-                btn.onclick = () => makeMove(i);
-                btn.id = `cell-${i}`;
-                board.appendChild(btn);
-            }
-        }
+<!-- ═══════════════════════════════════════════
+     MODAL: JOIN GAME
+═══════════════════════════════════════════ -->
+<div id="modal-join" class="modal-backdrop" onclick="if(event.target===this)closeModal('modal-join')">
+  <div class="card p-6 w-full max-w-sm animate-fade-up">
+    <h2 class="font-display text-2xl mb-5" data-i18n="join_game"></h2>
+    <div class="flex flex-col gap-4">
+      <div>
+        <label class="text-xs mb-1.5 block" style="color:var(--muted)" data-i18n="game_id_label"></label>
+        <input id="join-id" class="inp" type="number" min="1" data-i18n-placeholder="game_id_ph"/>
+      </div>
+      <div class="flex gap-2 mt-1">
+        <button class="btn btn-ghost flex-1" onclick="closeModal('modal-join')" data-i18n="cancel"></button>
+        <button class="btn btn-primary flex-1" onclick="joinGame()" data-i18n="join"></button>
+      </div>
+    </div>
+  </div>
+</div>
 
-        function setupWebSocket(gameId) {
-            if (ws && ws.url.includes(`/ws/${gameId}`) && ws.readyState === WebSocket.OPEN) return;
-            if (ws) ws.close();
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws/${gameId}`);
+<!-- ═══════════════════════════════════════════
+     JS
+═══════════════════════════════════════════ -->
+<script>
+// ─── TRANSLATIONS ───────────────────────────────────────────────────────────
+const T = {
+  ru: {
+    login: 'Войти', register: 'Регистрация',
+    username: 'Имя пользователя', username_ph: 'введите логин',
+    password: 'Пароль', password_ph: 'введите пароль',
+    logout: 'Выйти',
+    my_games: 'Мои игры',
+    new_game: 'Новая игра',
+    join_game: 'Войти в игру',
+    filter_all: 'Все',
+    filter_active: 'Активные',
+    filter_finished: 'Завершённые',
+    loading: 'Загрузка...',
+    no_games: 'Игр пока нет',
+    game_name: 'Название игры',
+    game_name_ph: 'например: Бой за победу',
+    game_id_label: 'ID игры',
+    game_id_ph: 'введите ID',
+    cancel: 'Отмена',
+    create: 'Создать',
+    join: 'Войти',
+    chat: 'Чат',
+    msg_ph: 'написать сообщение...',
+    back_lobby: 'В лобби',
+    waiting_player: 'Ожидание...',
+    symbol_x: 'символ X',
+    symbol_o: 'символ O',
+    status_active: 'Активна',
+    status_waiting: 'Ожидание',
+    status_draw: 'Ничья',
+    status_win1: 'Победа X',
+    status_win2: 'Победа O',
+    your_turn: 'Ваш ход',
+    opponent_turn: 'Ход соперника',
+    result_win: '🏆 Победа!',
+    result_lose: '💀 Поражение',
+    result_draw: '🤝 Ничья',
+    joined_msg: 'присоединился к игре',
+    turn_msg: 'сделал ход',
+    enter_game: 'Войти',
+    open_btn: 'Открыть',
+    turns_count: 'ходов',
+    game_id_short: 'ID',
+    you: 'Вы',
+  },
+  en: {
+    login: 'Login', register: 'Register',
+    username: 'Username', username_ph: 'enter username',
+    password: 'Password', password_ph: 'enter password',
+    logout: 'Logout',
+    my_games: 'My Games',
+    new_game: 'New Game',
+    join_game: 'Join Game',
+    filter_all: 'All',
+    filter_active: 'Active',
+    filter_finished: 'Finished',
+    loading: 'Loading...',
+    no_games: 'No games yet',
+    game_name: 'Game name',
+    game_name_ph: 'e.g. Epic Battle',
+    game_id_label: 'Game ID',
+    game_id_ph: 'enter ID',
+    cancel: 'Cancel',
+    create: 'Create',
+    join: 'Join',
+    chat: 'Chat',
+    msg_ph: 'type a message...',
+    back_lobby: 'Back to lobby',
+    waiting_player: 'Waiting...',
+    symbol_x: 'symbol X',
+    symbol_o: 'symbol O',
+    status_active: 'Active',
+    status_waiting: 'Waiting',
+    status_draw: 'Draw',
+    status_win1: 'X Wins',
+    status_win2: 'O Wins',
+    your_turn: 'Your turn',
+    opponent_turn: "Opponent's turn",
+    result_win: '🏆 Victory!',
+    result_lose: '💀 Defeat',
+    result_draw: '🤝 Draw',
+    joined_msg: 'joined the game',
+    turn_msg: 'made a move',
+    enter_game: 'Open',
+    open_btn: 'Open',
+    turns_count: 'turns',
+    game_id_short: 'ID',
+    you: 'You',
+  },
+  th: {
+    login: 'เข้าสู่ระบบ', register: 'สมัครสมาชิก',
+    username: 'ชื่อผู้ใช้', username_ph: 'ใส่ชื่อผู้ใช้',
+    password: 'รหัสผ่าน', password_ph: 'ใส่รหัสผ่าน',
+    logout: 'ออกจากระบบ',
+    my_games: 'เกมของฉัน',
+    new_game: 'เกมใหม่',
+    join_game: 'เข้าร่วมเกม',
+    filter_all: 'ทั้งหมด',
+    filter_active: 'กำลังเล่น',
+    filter_finished: 'จบแล้ว',
+    loading: 'กำลังโหลด...',
+    no_games: 'ยังไม่มีเกม',
+    game_name: 'ชื่อเกม',
+    game_name_ph: 'เช่น การต่อสู้ครั้งยิ่งใหญ่',
+    game_id_label: 'ID เกม',
+    game_id_ph: 'ใส่ ID',
+    cancel: 'ยกเลิก',
+    create: 'สร้าง',
+    join: 'เข้าร่วม',
+    chat: 'แชท',
+    msg_ph: 'พิมพ์ข้อความ...',
+    back_lobby: 'กลับไปล็อบบี้',
+    waiting_player: 'รอผู้เล่น...',
+    symbol_x: 'สัญลักษณ์ X',
+    symbol_o: 'สัญลักษณ์ O',
+    status_active: 'กำลังเล่น',
+    status_waiting: 'รอ',
+    status_draw: 'เสมอ',
+    status_win1: 'X ชนะ',
+    status_win2: 'O ชนะ',
+    your_turn: 'ตาคุณ',
+    opponent_turn: 'ตาคู่ต่อสู้',
+    result_win: '🏆 ชนะ!',
+    result_lose: '💀 แพ้',
+    result_draw: '🤝 เสมอ',
+    joined_msg: 'เข้าร่วมเกมแล้ว',
+    turn_msg: 'เดินหมากแล้ว',
+    enter_game: 'เปิด',
+    open_btn: 'เปิด',
+    turns_count: 'ตา',
+    game_id_short: 'ID',
+    you: 'คุณ',
+  }
+};
 
-            ws.onopen = () => document.getElementById('ws-status').className = 'ws-indicator ws-online';
-            ws.onmessage = (event) => {
-                if (event.data === "refresh") {
-                    refreshGameData();
-                } else {
-                    addChatMessage(event.data, 'chat');
-                    refreshGameData();
-                }
-            };
-            ws.onclose = () => document.getElementById('ws-status').className = 'ws-indicator ws-offline';
-        }
+// ─── LANGUAGE ────────────────────────────────────────────────────────────────
+function detectLang() {
+  const saved = localStorage.getItem('xo_lang');
+  if (saved && T[saved]) return saved;
+  const nav = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+  if (nav.startsWith('ru')) return 'ru';
+  if (nav.startsWith('th')) return 'th';
+  return 'en';
+}
 
-        function renderGame(game) {
-            if (!game) return;
-            currentGame = game;
-            showScreen('screen-game');
-            
-            document.getElementById('display-game-name').innerText = game.name;
-            document.getElementById('display-game-id').innerText = `ID: ${game.id}`;
-            
-            const isUserOne = game.user_one && game.user_one.id === currentUser.id;
-            const mySymbol = isUserOne ? game.user_one_simbol : (game.user_two_simbol || '-');
-            document.getElementById('my-username').innerText = currentUser.username;
-            document.getElementById('my-symbol').innerText = mySymbol;
+let currentLang = detectLang();
 
-            for (let i = 0; i < 9; i++) {
-                const cell = document.getElementById(`cell-${i}`);
-                if (cell) {
-                    cell.innerText = '';
-                    cell.className = 'grid-cell bg-gray-50 border-2 border-gray-200 rounded-xl hover:bg-blue-50 flex items-center justify-center font-bold';
-                }
-            }
-            
-            game.turns.forEach(turn => {
-                const cell = document.getElementById(`cell-${turn.number}`);
-                if (cell) {
-                    cell.innerText = turn.simbol;
-                    cell.className = `grid-cell border-2 rounded-xl flex items-center justify-center font-bold ${turn.simbol === 'X' ? 'text-red-500 bg-red-50 border-red-200' : 'text-blue-500 bg-blue-50 border-blue-200'}`;
-                }
-            });
+function t(key) { return (T[currentLang] || T.en)[key] || key; }
 
-            const statusBar = document.getElementById('game-status-bar');
-            if (game.status === 'Active') {
-                if (!game.user_two) {
-                    statusBar.innerText = t('status_waiting');
-                    statusBar.className = "mb-4 p-3 rounded text-center bg-gray-100 text-gray-500";
-                } else {
-                    let lastT = game.turns.length ? game.turns.reduce((max, t) => t.id > max.id ? t : max) : null;
-                    let nextPlayerId = !lastT ? game.user_one.id : (lastT.user.id === game.user_one.id ? game.user_two.id : game.user_one.id);
-                    if (nextPlayerId === currentUser.id) {
-                        statusBar.innerText = t('status_your_turn');
-                        statusBar.className = "mb-4 p-3 rounded text-center bg-green-100 text-green-700 animate-pulse";
-                    } else {
-                        const opponent = isUserOne ? (game.user_two ? game.user_two.username : '...') : game.user_one.username;
-                        statusBar.innerText = t('status_turn_of', {n: opponent});
-                        statusBar.className = "mb-4 p-3 rounded text-center bg-yellow-100 text-yellow-700";
-                    }
-                }
-            } else {
-                let resTxt = (game.status === 'Draw') ? t('res_draw') : (game.status === 'Win_user_one' ? (isUserOne ? t('res_win_you') : t('res_win_other', {n: game.user_one.username})) : (!isUserOne ? t('res_win_you') : t('res_win_other', {n: game.user_two.username})));
-                statusBar.innerText = resTxt;
-                statusBar.className = "mb-4 p-3 rounded text-center bg-indigo-600 text-white";
-            }
-            setupWebSocket(game.id);
-        }
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('xo_lang', lang);
+  document.documentElement.lang = lang;
+  document.body.className = lang === 'th' ? 'lang-th' : '';
+  applyTranslations();
+}
 
-        // Остальные функции (handleAuth, makeMove, refreshGameData, showScreen, initApp, checkActiveGame, showLobby, createGame, joinGame, logout) остаются без изменений, просто добавь их ниже.
-        async function handleAuth(type) {
-            const username = document.getElementById('auth-username').value;
-            const password = document.getElementById('auth-password').value;
-            if (!username || !password) return showToast('err_fields');
-            try {
-                let res = (type === 'register') 
-                    ? await apiFetch('/api/register', 'POST', { username, password })
-                    : await apiFetch('/api/login/form', 'POST', { username, password }, true);
-                token = res.access_token;
-                localStorage.setItem('token', token);
-                initApp();
-            } catch (e) {}
-        }
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    el.textContent = t(key);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    const langMap = { RU:'ru', EN:'en', TH:'th' };
+    btn.classList.toggle('active', langMap[btn.textContent] === currentLang);
+  });
+  // Update dynamic content if rendered
+  if (currentGameData) renderGameUI(currentGameData);
+  if (document.getElementById('screen-lobby').classList.contains('active')) renderGames();
+}
 
-        async function makeMove(cellIndex) {
-            if (!currentGame || currentGame.status !== 'Active') return;
-            try {
-                await apiFetch('/api/game/turn', 'POST', { number: cellIndex });
-                refreshGameData();
-            } catch (e) {}
-        }
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let token = localStorage.getItem('xo_token') || null;
+let currentUser = null;
+let currentGameData = null;
+let currentFilter = null;
+let wsConn = null;
+let gamesCache = [];
+let authMode = 'login';
 
-        async function refreshGameData() {
-            if (!currentGame) return;
-            try {
-                const game = await apiFetch(`/api/game/${currentGame.id}`);
-                renderGame(game);
-            } catch(e) {}
-        }
+// ─── API ─────────────────────────────────────────────────────────────────────
+const API = '/api';
 
-        function showScreen(id) {
-            ['screen-auth', 'screen-lobby', 'screen-game'].forEach(s => 
-                document.getElementById(s).classList.toggle('hidden', s !== id)
-            );
-        }
+async function apiCall(method, path, body, auth = true) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth && token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(API + path, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const json = await res.json();
+  if (!res.ok || (json.is_success === false)) {
+    const msg = json.error?.message || json.detail || 'Error';
+    throw new Error(msg);
+  }
+  return json.data !== undefined ? json.data : json;
+}
 
-        async function initApp() {
-            if (!token) return showScreen('screen-auth');
-            initBoard();
-            try {
-                currentUser = await apiFetch('/api/me');
-                document.getElementById('my-username').innerText = currentUser.username;
-                await checkActiveGame();
-            } catch (e) { 
-                if (e.message.includes('401') || e.message.includes('403')) logout(); 
-            }
-        }
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+function toast(msg, type = 'ok') {
+  const el = document.createElement('div');
+  el.className = `toast-item toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
 
-        async function checkActiveGame() {
-            try {
-                const game = await apiFetch('/api/game');
-                if (game && game.id) {
-                    initBoard();
-                    renderGame(game);
-                } else {
-                    showLobby();
-                }
-            } catch (e) { showLobby(); }
-        }
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function switchAuthTab(mode) {
+  authMode = mode;
+  document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+  document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+  document.querySelector('#auth-submit-btn [data-i18n]').dataset.i18n = mode;
+  applyTranslations();
+}
 
-        function showLobby() {
-            currentGame = null;
-            if(ws) ws.close();
-            document.getElementById('chat-messages').innerHTML = ''; // Очистка чата при выходе
-            showScreen('screen-lobby');
-        }
+async function submitAuth() {
+  const username = document.getElementById('auth-username').value.trim();
+  const password = document.getElementById('auth-password').value.trim();
+  const errEl = document.getElementById('auth-error');
+  errEl.classList.add('hidden');
 
-        async function createGame() {
-            const nameEl = document.getElementById('game-name');
-            if (!nameEl.value) return showToast('err_gname');
-            try {
-                const game = await apiFetch('/api/game', 'POST', { name: nameEl.value });
-                nameEl.value = '';
-                initBoard();
-                renderGame(game);
-            } catch(e) {}
-        }
+  if (!username || !password) return;
 
-        async function joinGame() {
-            const idEl = document.getElementById('join-game-id');
-            const game_id = parseInt(idEl.value);
-            if (!game_id) return showToast('err_gid');
-            try {
-                const game = await apiFetch('/api/game/join', 'POST', { game_id });
-                idEl.value = '';
-                initBoard();
-                renderGame(game);
-            } catch(e) {}
-        }
+  const btn = document.getElementById('auth-submit-btn');
+  btn.disabled = true;
 
-        function logout() {
-            localStorage.removeItem('token');
-            location.reload();
-        }
+  try {
+    if (authMode === 'login') {
+      const formData = new URLSearchParams();
+      formData.append('username', username);
+      formData.append('password', password);
+      const res = await fetch(API + '/login/form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || json.detail || 'Error');
+      token = json.access_token;
+    } else {
+      const data = await apiCall('POST', '/register', { username, password }, false);
+      token = data.access_token;
+    }
+    localStorage.setItem('xo_token', token);
+    await loadUser();
+    showLobby();
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
+}
 
-        initLang();
-        initApp();
-    </script>
+async function loadUser() {
+  currentUser = await apiCall('GET', '/me');
+}
+
+function logout() {
+  token = null;
+  currentUser = null;
+  localStorage.removeItem('xo_token');
+  disconnectWS();
+  showScreen('screen-auth');
+}
+
+// ─── SCREENS ─────────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+async function showLobby() {
+  showScreen('screen-lobby');
+  document.getElementById('lobby-username').textContent = currentUser?.username || '';
+  await loadGames();
+}
+
+function setFilter(val) {
+  currentFilter = val;
+  document.getElementById('filter-all').classList.toggle('active', val === null);
+  document.getElementById('filter-active').classList.toggle('active', val === 'Active');
+  document.getElementById('filter-finished').classList.toggle('active', val === 'finished');
+  loadGames();
+}
+
+async function loadGames() {
+  const listEl = document.getElementById('games-list');
+  listEl.innerHTML = `<div class="text-center py-12" style="color:var(--muted)"><div class="font-display text-2xl">${t('loading')}</div></div>`;
+  try {
+    let url = '/game/my';
+    // For "finished" we query non-active statuses — fetch all and filter client-side
+    // API supports ?status= filter
+    let fetchUrl = url;
+    if (currentFilter === 'Active') fetchUrl += '?status=Active';
+    gamesCache = await apiCall('GET', fetchUrl);
+    if (currentFilter === 'finished') {
+      gamesCache = gamesCache.filter(g => g.status !== 'Active');
+    }
+    renderGames();
+  } catch(e) {
+    listEl.innerHTML = `<div class="text-center py-12 msg-error">${e.message}</div>`;
+  }
+}
+
+function renderGames() {
+  const listEl = document.getElementById('games-list');
+  if (!gamesCache.length) {
+    listEl.innerHTML = `<div class="card p-10 text-center" style="color:var(--muted)"><div class="font-display text-3xl mb-2">—</div><div class="text-sm">${t('no_games')}</div></div>`;
+    return;
+  }
+  listEl.innerHTML = gamesCache.map(g => gameCard(g)).join('');
+}
+
+function gameCard(g) {
+  const me = currentUser;
+  const statusMap = {
+    'Active': g.user_two ? `<span class="badge badge-active"><span class="dot-active mr-1"></span>${t('status_active')}</span>` : `<span class="badge badge-waiting">${t('status_waiting')}</span>`,
+    'Win_user_one': `<span class="badge badge-win">${t('status_win1')}</span>`,
+    'Win_user_two': `<span class="badge badge-win">${t('status_win2')}</span>`,
+    'Draw': `<span class="badge badge-draw">${t('status_draw')}</span>`,
+  };
+  const badge = statusMap[g.status] || `<span class="badge badge-draw">${g.status}</span>`;
+  const p1 = g.user_one?.username || '—';
+  const p2 = g.user_two?.username || `<span style="color:var(--muted)">${t('waiting_player')}</span>`;
+  const turns = g.turns?.length || 0;
+
+  return `
+  <div class="card p-4 flex items-center justify-between gap-3 hover:border-opacity-60 transition-all" style="border-color:var(--border)" onmouseenter="this.style.borderColor='var(--muted)'" onmouseleave="this.style.borderColor='var(--border)'">
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+        <span class="font-bold text-sm truncate">${escHtml(g.name)}</span>
+        ${badge}
+        <span class="text-xs" style="color:var(--muted)">${t('game_id_short')} ${g.id}</span>
+      </div>
+      <div class="flex items-center gap-2 text-xs" style="color:var(--muted)">
+        <span style="color:var(--accent)">✕</span> ${escHtml(p1)}
+        <span>vs</span>
+        <span style="color:var(--accent2)">○</span> ${typeof p2 === 'string' && p2.includes('span') ? p2 : escHtml(p2)}
+        <span class="ml-2">· ${turns} ${t('turns_count')}</span>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm shrink-0" onclick="openGame(${g.id})">${t('open_btn')}</button>
+  </div>`;
+}
+
+function escHtml(s) {
+  if (typeof s !== 'string') return s;
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function openCreateModal() { document.getElementById('modal-create').classList.add('open'); }
+function openJoinModal() { document.getElementById('modal-join').classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function createGame() {
+  const name = document.getElementById('create-name').value.trim();
+  if (!name) return;
+  try {
+    const game = await apiCall('POST', '/game', { name });
+    closeModal('modal-create');
+    toast(game.name, 'ok');
+    document.getElementById('create-name').value = '';
+    await openGame(game.id);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function joinGame() {
+  const id = parseInt(document.getElementById('join-id').value);
+  if (!id) return;
+  try {
+    const game = await apiCall('POST', '/game/join', { game_id: id });
+    closeModal('modal-join');
+    document.getElementById('join-id').value = '';
+    await openGame(game.id);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ─── GAME ─────────────────────────────────────────────────────────────────────
+async function openGame(id) {
+  try {
+    const game = await apiCall('GET', `/game/${id}`);
+    currentGameData = game;
+    showScreen('screen-game');
+    renderGameUI(game);
+    clearChat();
+    connectWS(id);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function goToLobby() {
+  disconnectWS();
+  currentGameData = null;
+  showLobby();
+}
+
+function renderGameUI(game) {
+  currentGameData = game;
+  const me = currentUser;
+
+  // Name
+  document.getElementById('game-name').textContent = game.name;
+
+  // Detect my symbol
+  let mySymbol = null;
+  if (game.user_one?.id === me?.id) mySymbol = game.user_one_simbol;
+  if (game.user_two?.id === me?.id) mySymbol = game.user_two_simbol;
+
+  // Players
+  document.getElementById('p1-name').textContent = game.user_one?.username || '—';
+  document.getElementById('p2-name').textContent = game.user_two?.username || t('waiting_player');
+
+  // Turn indicator
+  const turnEl = document.getElementById('turn-indicator');
+  if (game.status === 'Active') {
+    const isMyTurn = game.current_user?.id === me?.id || (!game.current_user && game.user_one?.id === me?.id);
+    turnEl.innerHTML = isMyTurn
+      ? `<div class="font-display text-base" style="color:var(--accent)">${t('your_turn')}</div>`
+      : `<div class="font-display text-base" style="color:var(--muted)">${t('opponent_turn')}</div>`;
+  } else {
+    turnEl.innerHTML = `<div class="font-display text-xl" style="color:var(--muted)">VS</div>`;
+  }
+
+  // Status badge
+  const statusMap = {
+    'Active': `<span class="badge badge-active">${t('status_active')}</span>`,
+    'Win_user_one': `<span class="badge badge-win">${t('status_win1')}</span>`,
+    'Win_user_two': `<span class="badge badge-win">${t('status_win2')}</span>`,
+    'Draw': `<span class="badge badge-draw">${t('status_draw')}</span>`,
+  };
+  document.getElementById('game-status-badge').innerHTML = statusMap[game.status] || '';
+
+  // Board
+  renderBoard(game, mySymbol);
+
+  // Result banner
+  const resultBanner = document.getElementById('result-banner');
+  const resultText = document.getElementById('result-text');
+  const resultSub = document.getElementById('result-sub');
+
+  if (game.status !== 'Active') {
+    resultBanner.classList.remove('hidden');
+    let win = false;
+    if (game.status === 'Win_user_one' && mySymbol === game.user_one_simbol) win = true;
+    if (game.status === 'Win_user_two' && mySymbol === game.user_two_simbol) win = true;
+    if (game.status === 'Draw') {
+      resultText.textContent = t('result_draw');
+      resultText.style.color = 'var(--text)';
+    } else {
+      resultText.textContent = win ? t('result_win') : t('result_lose');
+      resultText.style.color = win ? 'var(--accent)' : 'var(--accent2)';
+    }
+    resultSub.textContent = game.name;
+  } else {
+    resultBanner.classList.add('hidden');
+  }
+}
+
+// Win detection for highlight
+function getWinCells(board) {
+  const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for (const [a,b,c] of lines) {
+    if (board[a] && board[a] === board[b] && board[b] === board[c]) return [a,b,c];
+  }
+  return [];
+}
+
+function renderBoard(game, mySymbol) {
+  const board = Array(9).fill(null);
+  for (const turn of (game.turns || [])) {
+    board[turn.number] = turn.simbol;
+  }
+  const winCells = getWinCells(board);
+  const isMyTurn = game.status === 'Active' && (
+    game.current_user?.id === currentUser?.id ||
+    (!game.current_user && game.user_one?.id === currentUser?.id)
+  );
+  const canPlay = isMyTurn && !!mySymbol;
+
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'board-cell' + (board[i] ? ' taken' : '') + (winCells.includes(i) ? ' win-cell' : '');
+
+    if (board[i]) {
+      const sym = document.createElement('span');
+      sym.className = board[i] === 'X' ? 'sym-x' : 'sym-o';
+      sym.textContent = board[i] === 'X' ? '✕' : '○';
+      cell.appendChild(sym);
+    } else if (canPlay) {
+      cell.onclick = () => makeMove(i);
+    }
+    boardEl.appendChild(cell);
+  }
+}
+
+async function makeMove(number) {
+  try {
+    await apiCall('POST', '/game/turn', { number });
+    // Refresh game
+    const game = await apiCall('GET', `/game/${currentGameData.id}`);
+    renderGameUI(game);
+  } catch(e) {
+    addChatMsg(e.message, 'error');
+  }
+}
+
+// ─── CHAT ─────────────────────────────────────────────────────────────────────
+function clearChat() {
+  document.getElementById('chat-messages').innerHTML = '';
+}
+
+function addChatMsg(text, type = 'system', name = null) {
+  const el = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  if (type === 'error') {
+    div.className = 'msg-error';
+    div.textContent = '⚠ ' + text;
+  } else if (type === 'user') {
+    div.className = 'msg-user';
+    div.innerHTML = `<span class="msg-name">${escHtml(name || '?')}</span> <span style="color:var(--text)">${escHtml(text)}</span>`;
+  } else {
+    div.className = 'msg-system';
+    div.textContent = text;
+  }
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  try {
+    await apiCall('POST', '/game/message', { message: msg });
+    // The WS will echo it back; but add optimistically
+    // addChatMsg(msg, 'user', currentUser?.username);
+  } catch(e) {
+    addChatMsg(e.message, 'error');
+  }
+}
+
+// ─── WEBSOCKET ────────────────────────────────────────────────────────────────
+function connectWS(gameId) {
+  disconnectWS();
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  wsConn = new WebSocket(`${proto}://${location.host}/ws/${gameId}`);
+
+  wsConn.onmessage = async (e) => {
+    const text = e.data;
+    // Parse message: "username: message" OR system "Присоединился..." / "Походил..."
+    if (text.includes(':')) {
+      const colonIdx = text.indexOf(':');
+      const name = text.slice(0, colonIdx).trim();
+      const body = text.slice(colonIdx + 1).trim();
+      // Check if it's a known system pattern (no real user names with spaces usually)
+      if (name.startsWith('Присоединил') || name.startsWith('Походил') || name.startsWith('Player') || body === '') {
+        addChatMsg(text, 'system');
+      } else {
+        addChatMsg(body, 'user', name);
+      }
+    } else {
+      addChatMsg(text, 'system');
+    }
+    // Refresh board on moves/joins
+    if (currentGameData) {
+      try {
+        const game = await apiCall('GET', `/game/${currentGameData.id}`);
+        renderGameUI(game);
+      } catch(_) {}
+    }
+  };
+
+  wsConn.onerror = () => addChatMsg('WebSocket error', 'error');
+  wsConn.onclose = () => {};
+}
+
+function disconnectWS() {
+  if (wsConn) { try { wsConn.close(); } catch(_) {} wsConn = null; }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+(async function init() {
+  setLang(currentLang);
+
+  if (token) {
+    try {
+      await loadUser();
+      showLobby();
+      return;
+    } catch(_) {
+      token = null;
+      localStorage.removeItem('xo_token');
+    }
+  }
+  showScreen('screen-auth');
+})();
+
+// Keyboard submit for auth
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (document.getElementById('screen-auth').classList.contains('active')) submitAuth();
+  }
+});
+</script>
 </body>
 </html>
