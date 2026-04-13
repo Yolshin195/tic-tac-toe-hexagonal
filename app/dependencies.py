@@ -11,30 +11,32 @@ from app.security import SecurityService
 from app.models import User
 from app.config import SECRET_KEY
 
-
-__all__ = [
-    "get_user_service"
-]
+__all__ = ["get_user_service"]
 
 
 def get_security_service() -> SecurityService:
     return SecurityService(secret_key=SECRET_KEY)
 
-def get_user_repository(session: AsyncSession = Depends(get_db_session)) -> UserRepository:
+
+def get_user_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> UserRepository:
     return UserRepository(session)
+
 
 def get_user_service(
     repo: UserRepository = Depends(get_user_repository),
-    security_service: SecurityService = Depends(get_security_service)
+    security_service: SecurityService = Depends(get_security_service),
 ) -> UserService:
     return UserService(repo=repo, security_service=security_service)
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login/form")
 
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    service: UserService = Depends(get_user_service)
+    service: UserService = Depends(get_user_service),
 ) -> User:
     """
     Middleware-подобная функция для проверки JWT.
@@ -43,11 +45,15 @@ async def get_current_user(
     return user
 
 
-async def get_game_repository(session: AsyncSession = Depends(get_db_session)) -> GameRepository:
+async def get_game_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> GameRepository:
     return GameRepository(session)
 
 
-async def get_turn_repository(session: AsyncSession = Depends(get_db_session)) -> TurnRepository:
+async def get_turn_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> TurnRepository:
     return TurnRepository(session)
 
 

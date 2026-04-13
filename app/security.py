@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any
 
 from app.models import TokenPayload, TokenResponse
 
+
 class SecurityService:
     def __init__(self, secret_key: str, algorithm: str = "HS256"):
         self.secret_key = secret_key
@@ -24,7 +25,7 @@ class SecurityService:
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """
-        Проверяет пароль. 
+        Проверяет пароль.
         Argon2 хранит параметры алгоритма в самой строке хеша.
         """
         try:
@@ -41,22 +42,28 @@ class SecurityService:
 
     # --- Работа с JWT ---
 
-    def create_token(self, payload: TokenPayload, expires_minutes: int = 30) -> TokenResponse:
+    def create_token(
+        self, payload: TokenPayload, expires_minutes: int = 30
+    ) -> TokenResponse:
         """Принимает модель Pydantic и возвращает модель TokenResponse."""
         # Превращаем модель в словарь для PyJWT
         data_to_encode = payload.model_dump()
-        
+
         expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
         data_to_encode.update({"exp": expire})
-        
-        encoded_jwt = jwt.encode(data_to_encode, self.secret_key, algorithm=self.algorithm)
-        
+
+        encoded_jwt = jwt.encode(
+            data_to_encode, self.secret_key, algorithm=self.algorithm
+        )
+
         return TokenResponse(access_token=encoded_jwt)
 
     def decode_token(self, token: str) -> Optional[TokenPayload]:
         """Расшифровывает токен и возвращает валидированную модель Pydantic."""
         try:
-            payload_dict = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+            payload_dict = jwt.decode(
+                token, self.secret_key, algorithms=[self.algorithm]
+            )
             # Валидируем словарь через Pydantic и возвращаем объект
             return TokenPayload(**payload_dict)
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, Exception):
@@ -73,7 +80,7 @@ if __name__ == "__main__":
     hashed = service.hash_password(my_pass)
     # Хеш Argon2 будет выглядеть примерно так: $argon2id$v=19$m=65536,t=3,p=4$...
     print(f"Хеш Argon2 в БД: {hashed}")
-    
+
     is_valid = service.verify_password("admin123", hashed)
     print(f"Пароль верный? {is_valid}")
 
@@ -89,8 +96,7 @@ if __name__ == "__main__":
 
     # 3. Расшифровываем (на выходе модель TokenPayload)
     decoded_user = service.decode_token(token_data.access_token)
-    
+
     if decoded_user:
         print(f"User ID: {decoded_user.sub}")
         print(f"Username: {decoded_user.username}")
-

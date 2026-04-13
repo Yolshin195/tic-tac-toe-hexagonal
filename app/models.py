@@ -2,35 +2,35 @@ from typing import TypeVar, Generic
 from pydantic import BaseModel, Field, computed_field
 from app.enums import Simbol, StatusGame, ErrorCode
 
+ResponseWrapperDataT = TypeVar("ResponseWrapperDataT")
 
-ResponseWrapperDataT = TypeVar('ResponseWrapperDataT')
 
 class PagingOffset(BaseModel):
-	offset: int | None = 0
-	limit: int = 20
+    offset: int | None = 0
+    limit: int = 20
 
 
 class ResponsePagingOffset(PagingOffset):
-	total: int = 0
+    total: int = 0
 
 
 class PagingByPage(BaseModel):
-	page: int | None = 1
-	limit: int = 20
+    page: int | None = 1
+    limit: int = 20
 
 
 class ResponsePagingByPage(PagingByPage):
-	total: int = 0
+    total: int = 0
 
 
 class RequestLimit(BaseModel):
-	limit: int | None = 20
+    limit: int | None = 20
 
 
 class ErrorWrapper(BaseModel):
-	code: ErrorCode = ErrorCode.INTERNAL_ERROR
-	message: str | None
-	params: dict[str, str] | None
+    code: ErrorCode = ErrorCode.INTERNAL_ERROR
+    message: str | None
+    params: dict[str, str] | None
 
 
 class ResponseWrapper(BaseModel, Generic[ResponseWrapperDataT]):
@@ -38,22 +38,22 @@ class ResponseWrapper(BaseModel, Generic[ResponseWrapperDataT]):
 
     data: ResponseWrapperDataT | None = Field(
         None,
-        description='Response data',
+        description="Response data",
     )
-    is_success: bool = Field(True, description='Success flag')
+    is_success: bool = Field(True, description="Success flag")
     pagination: ResponsePagingByPage | None = Field(
-        None, description='Pagination object (if available)'
+        None, description="Pagination object (if available)"
     )
     error: ErrorWrapper | None = Field(
         None,
-        description='Error details (if request not successed)',
+        description="Error details (if request not successed)",
     )
 
     @staticmethod
     def make_success(
         data: ResponseWrapperDataT | None,
         pagination: ResponsePagingByPage | None = None,
-    ) -> 'ResponseWrapper[ResponseWrapperDataT]':
+    ) -> "ResponseWrapper[ResponseWrapperDataT]":
         """
         Return ResponseWrapper with passed data for successfully response.
         """
@@ -65,22 +65,24 @@ class ResponseWrapper(BaseModel, Generic[ResponseWrapperDataT]):
 
     @staticmethod
     def make_error(
-        error: ErrorWrapper | None = None
-    ) -> 'ResponseWrapper[ResponseWrapperDataT]':
+        error: ErrorWrapper | None = None,
+    ) -> "ResponseWrapper[ResponseWrapperDataT]":
         """Return ResponseWrapper with passed error for response with fails."""
         return ResponseWrapper(
-            error = error,
-            is_success = False,
+            error=error,
+            is_success=False,
         )
 
 
 class TokenPayload(BaseModel):
     """Структура данных внутри токена."""
+
     sub: str  # Обычно ID пользователя (subject)
     username: str
     role: str = "user"
-    # Поля 'exp' и 'iat' добавятся библиотекой jwt автоматически, 
+    # Поля 'exp' и 'iat' добавятся библиотекой jwt автоматически,
     # но их можно описать здесь для типизации.
+
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -154,7 +156,7 @@ class Game(BaseModel):
             if self.user_two.id == last_turn.user.id:
                 return self.user_one
         return None
-        
+
 
 if __name__ == "__main__":
     # Создаем пользователей
@@ -179,7 +181,7 @@ if __name__ == "__main__":
             Turn(id=7, user=user_1, simbol=Simbol.X, number=3),
             Turn(id=8, user=user_2, simbol=Simbol.O, number=5),
             Turn(id=9, user=user_1, simbol=Simbol.X, number=6),
-        ]
+        ],
     )
 
     # Вывод для проверки

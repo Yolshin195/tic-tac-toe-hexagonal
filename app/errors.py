@@ -4,7 +4,8 @@ from app.enums import ErrorCode
 
 class AppError(Exception):
     """Базовая ошибка приложения"""
-    error_code: ErrorCode = ErrorCode.INTERNAL_ERROR 
+
+    error_code: ErrorCode = ErrorCode.INTERNAL_ERROR
 
     def __init__(
         self,
@@ -26,6 +27,7 @@ class AppError(Exception):
 
 class ServiceError(AppError):
     """Ошибка бизнес-логики"""
+
     pass
 
 
@@ -41,6 +43,7 @@ class GameServiceError(ServiceError):
 
 class RepositoryError(AppError):
     """Ошибка базы данных"""
+
     error_code = ErrorCode.DB_ERROR
 
     def __init__(self, message: str = "Database error"):
@@ -52,6 +55,7 @@ class RepositoryError(AppError):
 
 class EntityNotFoundError(ServiceError):
     """Объект не найден"""
+
     error_code = ErrorCode.NOT_FOUND
 
     def __init__(self, entity: str, entity_id: str | int):
@@ -64,6 +68,7 @@ class EntityNotFoundError(ServiceError):
 
 class SecurityError(ServiceError):
     """Ошибка безопасности"""
+
     error_code = ErrorCode.ACCESS_DENIED
 
     def __init__(self, message: str = "Access denied"):

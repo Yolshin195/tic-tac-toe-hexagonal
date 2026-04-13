@@ -22,20 +22,22 @@ class GameEntity(BaseEntity):
     name: Mapped[str] = mapped_column()
     status: Mapped[StatusGame] = mapped_column(
         Enumsql(StatusGame, native_enum=False),
-        default=StatusGame.ACTIVE,        # Значение на стороне Python
+        default=StatusGame.ACTIVE,  # Значение на стороне Python
         server_default=StatusGame.ACTIVE.value,  # Значение на стороне БД (SQL)
-        nullable=False
+        nullable=False,
     )
 
     user_one_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    user_two_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    user_two_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
     user_one: Mapped[UserEntity] = relationship(foreign_keys=[user_one_id])
     user_two: Mapped[UserEntity | None] = relationship(foreign_keys=[user_two_id])
 
     user_one_simbol: Mapped[Simbol] = mapped_column(Enumsql(Simbol, native_enum=False))
     user_two_simbol: Mapped[Simbol] = mapped_column(Enumsql(Simbol, native_enum=False))
 
-    turns: Mapped[list['TurnEntity']] = relationship(
+    turns: Mapped[list["TurnEntity"]] = relationship(
         back_populates="game", cascade="all, delete-orphan"
     )
 
@@ -52,7 +54,7 @@ class TurnEntity(BaseEntity):
     user: Mapped[UserEntity] = relationship(foreign_keys=[user_id])
 
     game_id: Mapped[int] = mapped_column(ForeignKey("games.id"))
-    game: Mapped['GameEntity'] = relationship(back_populates="turns")
+    game: Mapped["GameEntity"] = relationship(back_populates="turns")
 
     number: Mapped[int] = mapped_column()
     simbol: Mapped[Simbol] = mapped_column(Enumsql(Simbol, native_enum=False))
@@ -67,5 +69,5 @@ class TurnEntity(BaseEntity):
 #     game_id: Mapped[int] = mapped_column(ForeignKey("games.id"))
 #     game: Mapped['GameEntity'] = relationship(back_populates="turns")
 
-#     type: Mapped[EventType] = mapped_column(Enumsql(EventType, native_enum=False))
+# type: Mapped[EventType] = mapped_column(Enumsql(EventType, native_enum=False))
 #     message: Mapped[str | None] = mapped_column(nullable=True)

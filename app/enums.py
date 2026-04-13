@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class Simbol(str, Enum):
     X = "X"
     O = "O"
@@ -21,7 +22,7 @@ class EventType(str, Enum):
 class ErrorCode(str, Enum):
     # Base
     INTERNAL_ERROR = "INTERNAL_ERROR"
-    # Auth / Security  
+    # Auth / Security
     ACCESS_DENIED = "ACCESS_DENIED"
     INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
     # Entities

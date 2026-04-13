@@ -21,12 +21,13 @@ from app.models import (
     Game,
     Turn,
     ResponseWrapper,
-    ErrorWrapper
+    ErrorWrapper,
 )
 from app.filters import GameFilter
 from app.websocket import manager as ws_manager
 
 app = fastapi.FastAPI()
+
 
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):
@@ -42,30 +43,32 @@ async def app_error_handler(request: Request, exc: AppError):
 
 @app.get("/", response_class=HTMLResponse)
 async def main():
-    return FileResponse('templates/index.html')
+    return FileResponse("templates/index.html")
 
-@app.post("/api/register")
+
+@app.post("/api/register", response_model=ResponseWrapper[TokenResponse])
 async def register(
-    data: RegisterUserRequest,
-    service: UserService = Depends(get_user_service)
-) -> TokenResponse:
-    return await service.register(data)
+    data: RegisterUserRequest, service: UserService = Depends(get_user_service)
+) -> ResponseWrapper[TokenResponse]:
+    result = await service.register(data)
+    return ResponseWrapper[TokenResponse].make_success(result)
 
-@app.post("/api/login/form")
+
+@app.post("/api/login/form", response_model=TokenResponse)
 async def login_form(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    service: UserService = Depends(get_user_service)
-) -> TokenResponse:
-    data = LoggingUserRequest(
-        username=form_data.username,
-        password=form_data.password
-    )
-    return await service.loggin(data)
+    service: UserService = Depends(get_user_service),
+) -> ResponseWrapper[TokenResponse]:
+    data = LoggingUserRequest(username=form_data.username, password=form_data.password)
+    result = await service.loggin(data)
+    return result
 
 
-@app.get("/api/me")
-async def get_current_user(user: User = Depends(get_current_user)) -> User:
-    return user
+@app.get("/api/me", response_model=ResponseWrapper[User])
+async def get_current_user(
+    user: User = Depends(get_current_user),
+) -> ResponseWrapper[User]:
+    return ResponseWrapper[User].make_success(user)
 
 
 @app.get(
@@ -80,9 +83,7 @@ async def get_my_game(
     return ResponseWrapper[list[Game]].make_success(rows)
 
 
-@app.post("/api/game",
-    response_model=ResponseWrapper[Game]
-)
+@app.post("/api/game", response_model=ResponseWrapper[Game])
 async def create_game(
     data: CreateGameRequest,
     service: GameService = Depends(get_game_service),
@@ -91,48 +92,55 @@ async def create_game(
     return ResponseWrapper[Game].make_success(game)
 
 
-@app.get("/api/game")
+@app.get("/api/game", response_model=ResponseWrapper[Game])
 async def get_active_game(
-    service: GameService = Depends(get_game_service)
-) -> Game:
-    return await service.get_active_game()
-
-
-@app.get("/api/game/{game_id}")
-async def get_active_game(
-    game_id: int,
-    service: GameService = Depends(get_game_service)
-) -> Game:
-    return await service.get_game(game_id)
-
-
-@app.post("/api/game/join")
-async def join(
-    data: JoinGameRequest,
-    service: GameService = Depends(get_game_service)
-) -> Game:
-    game = await service.join_game(data)
-    await ws_manager.broadcast_update(game.id, f"Присоединился игрок {game.user_two_simbol.value}: {game.user_two.username}")
-    return game
-
-
-@app.post("/api/game/turn")
-async def turn(
-    data: MakeTurnRequest,
-    service: GameService = Depends(get_game_service)
-) -> None:
-    turn: Turn = await service.make_turn(data)
-    await ws_manager.broadcast_update(turn.game_id, f"Походил игрок {turn.simbol.value}: {turn.number}")
-    return turn
-
-
-@app.post("/api/game/message")
-async def send_message(
-        data: SendMessageRequest,
-        service: GameService = Depends(get_game_service)
-    ) -> None:
+    service: GameService = Depends(get_game_service),
+) -> ResponseWrapper[Game]:
     game = await service.get_active_game()
-    await ws_manager.broadcast_update(game.id, f"{service.user.username}: {data.message}")
+    return ResponseWrapper[Game].make_success(game)
+
+
+@app.get("/api/game/{game_id}", response_model=ResponseWrapper[Game])
+async def get_game_by_id(
+    game_id: int, service: GameService = Depends(get_game_service)
+) -> ResponseWrapper[Game]:
+    game = await service.get_game(game_id)
+    return ResponseWrapper[Game].make_success(game)
+
+
+@app.post("/api/game/join", response_model=ResponseWrapper[Game])
+async def join(
+    data: JoinGameRequest, service: GameService = Depends(get_game_service)
+) -> ResponseWrapper[Game]:
+    game = await service.join_game(data)
+    await ws_manager.broadcast_update(
+        game.id,
+        f"Присоединился игрок {game.user_two_simbol.value}: {game.user_two.username}",
+    )
+    return ResponseWrapper[Game].make_success(game)
+
+
+@app.post("/api/game/turn", response_model=ResponseWrapper[Turn])
+async def turn(
+    data: MakeTurnRequest, service: GameService = Depends(get_game_service)
+) -> ResponseWrapper[Turn]:
+    turn_result: Turn = await service.make_turn(data)
+    await ws_manager.broadcast_update(
+        turn_result.game_id,
+        f"Походил игрок {turn_result.simbol.value}: {turn_result.number}",
+    )
+    return ResponseWrapper[Turn].make_success(turn_result)
+
+
+@app.post("/api/game/message", response_model=ResponseWrapper[bool])
+async def send_message(
+    data: SendMessageRequest, service: GameService = Depends(get_game_service)
+) -> ResponseWrapper[bool]:
+    game = await service.get_active_game()
+    await ws_manager.broadcast_update(
+        game.id, f"{service.user.username}: {data.message}"
+    )
+    return ResponseWrapper[bool].make_success(True)
 
 
 @app.websocket("/ws/{game_id}")

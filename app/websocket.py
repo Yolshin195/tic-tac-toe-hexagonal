@@ -1,6 +1,7 @@
 from typing import Dict, List
 from fastapi.websockets import WebSocket
 
+
 class ConnectionManager:
     def __init__(self):
         # Словарь: { game_id: [список_вебсокетов] }
@@ -23,15 +24,14 @@ class ConnectionManager:
         if game_id in self.active_connections:
             for connection in self.active_connections[game_id]:
                 try:
-                    # Можно отправить просто текст "refresh", 
+                    # Можно отправить просто текст "refresh",
                     # чтобы фронтенд понял: пора вызвать GET /api/game/id
                     await connection.send_text(message)
                 except Exception:
                     # Если соединение битое, менеджер очистит его позже или при дисконнекте
                     pass
 
+
 manager = ConnectionManager()
 
-__all__ = [
-    "manager"
-]
+__all__ = ["manager"]
