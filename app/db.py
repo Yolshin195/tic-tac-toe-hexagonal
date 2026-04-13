@@ -1,4 +1,8 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    async_sessionmaker,
+    AsyncSession,
+)
 from typing import AsyncGenerator
 
 DATABASE_URL = "sqlite+aiosqlite:///./tic_tac_toe.db"

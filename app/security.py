@@ -23,7 +23,9 @@ class SecurityService:
         """
         return self._ph.hash(password)
 
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+    def verify_password(
+        self, plain_password: str, hashed_password: str
+    ) -> bool:
         """
         Проверяет пароль.
         Argon2 хранит параметры алгоритма в самой строке хеша.
@@ -49,7 +51,9 @@ class SecurityService:
         # Превращаем модель в словарь для PyJWT
         data_to_encode = payload.model_dump()
 
-        expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=expires_minutes
+        )
         data_to_encode.update({"exp": expire})
 
         encoded_jwt = jwt.encode(

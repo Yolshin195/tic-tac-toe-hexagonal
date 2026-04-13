@@ -38,7 +38,9 @@ async def app_error_handler(request: Request, exc: AppError):
             params=exc.details or None,
         )
     )
-    return JSONResponse(status_code=exc.status_code, content=wrapper.model_dump())
+    return JSONResponse(
+        status_code=exc.status_code, content=wrapper.model_dump()
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -59,7 +61,9 @@ async def login_form(
     form_data: OAuth2PasswordRequestForm = Depends(),
     service: UserService = Depends(get_user_service),
 ) -> ResponseWrapper[TokenResponse]:
-    data = LoggingUserRequest(username=form_data.username, password=form_data.password)
+    data = LoggingUserRequest(
+        username=form_data.username, password=form_data.password
+    )
     result = await service.loggin(data)
     return result
 

@@ -22,7 +22,9 @@ class UserRepository:
         user = (await self.session.execute(stmt)).scalar_one_or_none()
         return user
 
-    async def create_user(self, username: str, hashed_password: str) -> UserEntity:
+    async def create_user(
+        self, username: str, hashed_password: str
+    ) -> UserEntity:
         user = UserEntity(username=username, hashed_password=hashed_password)
         self.session.add(user)
         await self.session.commit()

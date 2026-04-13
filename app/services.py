@@ -21,7 +21,9 @@ log = logging.getLogger(__name__)
 
 
 class UserService:
-    def __init__(self, repo: UserRepository, security_service: SecurityService):
+    def __init__(
+        self, repo: UserRepository, security_service: SecurityService
+    ):
         self.repo = repo
         self.security_service = security_service
 
@@ -63,7 +65,9 @@ class UserService:
 
 
 class GameService:
-    def __init__(self, user: User, repo: GameRepository, turn_repo: TurnRepository):
+    def __init__(
+        self, user: User, repo: GameRepository, turn_repo: TurnRepository
+    ):
         self.user = user
         self.repo = repo
         self.turn_repo = turn_repo
@@ -115,14 +119,18 @@ class GameService:
         if active_game.turns:
             last_turn = max(active_game.turns, key=lambda turn: turn.id)
             if last_turn.user_id == self.user.id:
-                raise GameServiceError(f"Сейчас не ваш ход, дождитесь своего хода")
+                raise GameServiceError(
+                    f"Сейчас не ваш ход, дождитесь своего хода"
+                )
 
         if active_game.user_one_id == self.user.id:
             simbol = active_game.user_one_simbol
         elif active_game.user_two_id == self.user.id:
             simbol = active_game.user_two_simbol
         else:
-            raise GameServiceError(f"Не удалось получиь символ для пользователя")
+            raise GameServiceError(
+                f"Не удалось получиь символ для пользователя"
+            )
 
         turn = TurnEntity(
             user_id=self.user.id,
@@ -138,9 +146,13 @@ class GameService:
 
         return turn
 
-    async def get_all_my_game(self, filters: GameFilter | None = None) -> list[Game]:
+    async def get_all_my_game(
+        self, filters: GameFilter | None = None
+    ) -> list[Game]:
         rows = await self.repo.list(self.user.id, filters=filters)
-        return [Game.model_validate(game, from_attributes=True) for game in rows]
+        return [
+            Game.model_validate(game, from_attributes=True) for game in rows
+        ]
 
     async def get_active_game(self) -> Game:
         active_game = await self.repo.get_active_by_user_id(self.user.id)
@@ -154,7 +166,9 @@ class GameService:
         return Game.model_validate(active_game, from_attributes=True)
 
     async def get_game(self, game_id: int) -> Game:
-        active_game = await self.repo.get_by_id_and_user_id(game_id, self.user.id)
+        active_game = await self.repo.get_by_id_and_user_id(
+            game_id, self.user.id
+        )
         if active_game is None:
             raise GameServiceError(
                 f"У вас нету доступа к этой игре, создайте или присоединитесь к существующей"

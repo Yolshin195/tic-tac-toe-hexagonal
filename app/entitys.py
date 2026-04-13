@@ -32,10 +32,16 @@ class GameEntity(BaseEntity):
         ForeignKey("users.id"), nullable=True
     )
     user_one: Mapped[UserEntity] = relationship(foreign_keys=[user_one_id])
-    user_two: Mapped[UserEntity | None] = relationship(foreign_keys=[user_two_id])
+    user_two: Mapped[UserEntity | None] = relationship(
+        foreign_keys=[user_two_id]
+    )
 
-    user_one_simbol: Mapped[Simbol] = mapped_column(Enumsql(Simbol, native_enum=False))
-    user_two_simbol: Mapped[Simbol] = mapped_column(Enumsql(Simbol, native_enum=False))
+    user_one_simbol: Mapped[Simbol] = mapped_column(
+        Enumsql(Simbol, native_enum=False)
+    )
+    user_two_simbol: Mapped[Simbol] = mapped_column(
+        Enumsql(Simbol, native_enum=False)
+    )
 
     turns: Mapped[list["TurnEntity"]] = relationship(
         back_populates="game", cascade="all, delete-orphan"
@@ -47,7 +53,9 @@ class TurnEntity(BaseEntity):
 
     __table_args__ = (
         UniqueConstraint("game_id", "number", name="uq_game_turn_number"),
-        CheckConstraint("number >= 0 AND number <= 8", name="check_turn_range"),
+        CheckConstraint(
+            "number >= 0 AND number <= 8", name="check_turn_range"
+        ),
     )
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
