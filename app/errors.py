@@ -1,8 +1,10 @@
 from http import HTTPStatus
+from app.enums import ErrorCode
 
 
 class AppError(Exception):
     """Базовая ошибка приложения"""
+    error_code: ErrorCode = ErrorCode.INTERNAL_ERROR 
 
     def __init__(
         self,
@@ -28,6 +30,8 @@ class ServiceError(AppError):
 
 
 class GameServiceError(ServiceError):
+    error_code = ErrorCode.GAME_ERROR
+
     def __init__(self, message: str = "Database error"):
         super().__init__(
             message,
@@ -37,6 +41,7 @@ class GameServiceError(ServiceError):
 
 class RepositoryError(AppError):
     """Ошибка базы данных"""
+    error_code = ErrorCode.DB_ERROR
 
     def __init__(self, message: str = "Database error"):
         super().__init__(
@@ -47,6 +52,7 @@ class RepositoryError(AppError):
 
 class EntityNotFoundError(ServiceError):
     """Объект не найден"""
+    error_code = ErrorCode.NOT_FOUND
 
     def __init__(self, entity: str, entity_id: str | int):
         super().__init__(
@@ -58,6 +64,7 @@ class EntityNotFoundError(ServiceError):
 
 class SecurityError(ServiceError):
     """Ошибка безопасности"""
+    error_code = ErrorCode.ACCESS_DENIED
 
     def __init__(self, message: str = "Access denied"):
         super().__init__(

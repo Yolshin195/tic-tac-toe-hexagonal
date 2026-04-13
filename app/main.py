@@ -19,21 +19,26 @@ from app.models import (
     MakeTurnRequest,
     User,
     Game,
-    Turn
+    Turn,
+    ResponseWrapper,
+    ErrorWrapper
 )
+from app.filters import GameFilter
 from app.websocket import manager as ws_manager
 
 app = fastapi.FastAPI()
 
 @app.exception_handler(AppError)
-async def app_error_handler(
-    request: Request,
-    exc: AppError,
-):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=exc.to_dict(),
+async def app_error_handler(request: Request, exc: AppError):
+    wrapper = ResponseWrapper().make_error(
+        ErrorWrapper(
+            code=exc.error_code,
+            message=exc.message,
+            params=exc.details or None,
+        )
     )
+    return JSONResponse(status_code=exc.status_code, content=wrapper.model_dump())
+
 
 @app.get("/", response_class=HTMLResponse)
 async def main():
@@ -63,12 +68,27 @@ async def get_current_user(user: User = Depends(get_current_user)) -> User:
     return user
 
 
-@app.post("/api/game")
+@app.get(
+    path="/api/game/my",
+    response_model=ResponseWrapper[list[Game]],
+)
+async def get_my_game(
+    filters: GameFilter = Depends(),
+    service: GameService = Depends(get_game_service),
+) -> ResponseWrapper[list[Game]]:
+    rows = await service.get_all_my_game(filters=filters)
+    return ResponseWrapper[list[Game]].make_success(rows)
+
+
+@app.post("/api/game",
+    response_model=ResponseWrapper[Game]
+)
 async def create_game(
     data: CreateGameRequest,
-    service: GameService = Depends(get_game_service)
-) -> Game:
-    return await service.start_game(data)
+    service: GameService = Depends(get_game_service),
+) -> ResponseWrapper[Game]:
+    game = await service.start_game(data)
+    return ResponseWrapper[Game].make_success(game)
 
 
 @app.get("/api/game")

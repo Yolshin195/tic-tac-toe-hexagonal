@@ -5,6 +5,7 @@ from app.errors import SecurityError, GameServiceError
 from app.models import TokenResponse, TokenPayload, Game, CreateGameRequest, Turn, MakeTurnRequest, JoinGameRequest
 from app.entitys import GameEntity, TurnEntity
 from app.enums import Simbol, StatusGame
+from app.filters import GameFilter
 import random
 import logging
 
@@ -129,6 +130,10 @@ class GameService:
         await self._update_status(active_game)
 
         return turn
+    
+    async def get_all_my_game(self, filters: GameFilter | None = None) -> list[Game]:
+        rows = await self.repo.list(self.user.id, filters=filters)
+        return [Game.model_validate(game, from_attributes=True) for game in rows]
 
     async def get_active_game(self) -> Game:
         active_game = await self.repo.get_active_by_user_id(self.user.id)

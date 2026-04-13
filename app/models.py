@@ -1,5 +1,77 @@
+from typing import TypeVar, Generic
 from pydantic import BaseModel, Field, computed_field
-from app.enums import Simbol, StatusGame
+from app.enums import Simbol, StatusGame, ErrorCode
+
+
+ResponseWrapperDataT = TypeVar('ResponseWrapperDataT')
+
+class PagingOffset(BaseModel):
+	offset: int | None = 0
+	limit: int = 20
+
+
+class ResponsePagingOffset(PagingOffset):
+	total: int = 0
+
+
+class PagingByPage(BaseModel):
+	page: int | None = 1
+	limit: int = 20
+
+
+class ResponsePagingByPage(PagingByPage):
+	total: int = 0
+
+
+class RequestLimit(BaseModel):
+	limit: int | None = 20
+
+
+class ErrorWrapper(BaseModel):
+	code: ErrorCode = ErrorCode.INTERNAL_ERROR
+	message: str | None
+	params: dict[str, str] | None
+
+
+class ResponseWrapper(BaseModel, Generic[ResponseWrapperDataT]):
+    """Global reponse scheme"""
+
+    data: ResponseWrapperDataT | None = Field(
+        None,
+        description='Response data',
+    )
+    is_success: bool = Field(True, description='Success flag')
+    pagination: ResponsePagingByPage | None = Field(
+        None, description='Pagination object (if available)'
+    )
+    error: ErrorWrapper | None = Field(
+        None,
+        description='Error details (if request not successed)',
+    )
+
+    @staticmethod
+    def make_success(
+        data: ResponseWrapperDataT | None,
+        pagination: ResponsePagingByPage | None = None,
+    ) -> 'ResponseWrapper[ResponseWrapperDataT]':
+        """
+        Return ResponseWrapper with passed data for successfully response.
+        """
+
+        return ResponseWrapper(
+            data=data,
+            pagination=pagination,
+        )
+
+    @staticmethod
+    def make_error(
+        error: ErrorWrapper | None = None
+    ) -> 'ResponseWrapper[ResponseWrapperDataT]':
+        """Return ResponseWrapper with passed error for response with fails."""
+        return ResponseWrapper(
+            error = error,
+            is_success = False,
+        )
 
 
 class TokenPayload(BaseModel):

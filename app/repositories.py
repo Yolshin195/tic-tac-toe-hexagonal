@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.entitys import UserEntity, GameEntity, TurnEntity
 from app.models import User
 from app.enums import StatusGame
-
+from app.filters import GameFilter
 
 class UserRepository:
     def __init__(self, session: AsyncSession):
@@ -35,6 +35,27 @@ class UserRepository:
 class GameRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    async def list(self, user_id: int, filters: GameFilter | None = None) -> list[GameEntity]:
+        stmt = (
+            select(GameEntity)
+            .where(
+                or_(
+                    GameEntity.user_one_id == user_id,
+                    GameEntity.user_two_id == user_id,
+                )
+            )
+            .options(
+                joinedload(GameEntity.user_one),
+                joinedload(GameEntity.user_two),
+                selectinload(GameEntity.turns)
+            )
+        )
+
+        if filters:
+            stmt = filters.apply(stmt, GameEntity)
+
+        return (await self.session.execute(stmt)).scalars()
     
     async def get_active_by_user_id(self, user_id: int) -> GameEntity | None:
         stmt = (

@@ -56,3 +56,16 @@ class TurnEntity(BaseEntity):
 
     number: Mapped[int] = mapped_column()
     simbol: Mapped[Simbol] = mapped_column(Enumsql(Simbol, native_enum=False))
+
+
+# class EventEntity(BaseEntity):
+#     __tablename__ = "events"
+
+#     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+#     user: Mapped[UserEntity] = relationship(foreign_keys=[user_id])
+
+#     game_id: Mapped[int] = mapped_column(ForeignKey("games.id"))
+#     game: Mapped['GameEntity'] = relationship(back_populates="turns")
+
+#     type: Mapped[EventType] = mapped_column(Enumsql(EventType, native_enum=False))
+#     message: Mapped[str | None] = mapped_column(nullable=True)
